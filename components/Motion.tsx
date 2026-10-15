@@ -3,27 +3,42 @@
 // Animated pieces used on the public pages (Framer Motion).
 // All animations respect the visitor's "reduce motion" setting.
 
-import { motion, AnimatePresence, useReducedMotion, useInView, animate } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion, useInView, animate, useScroll, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 
-// ---------- Reveal: fades content up when it scrolls into view ----------
+// ---------- Reveal: fades content up when the page opens, or when it scrolls into view ----------
+// Content on screen when the page opens fades up with a CSS animation (.reveal-rise in globals.css),
+// so it shows even if JavaScript is slow. Content further down fades up when you scroll to it.
+// "x" / "y" set where it comes from: x={24} slides in from the right, y={0} only fades.
+// "scale" below 1 makes it grow into place (for example scale={0.97}).
 export function Reveal({
   children,
   delay = 0,
   className = "",
+  x = 0,
+  y = 28,
+  scale = 1,
 }: {
   children: React.ReactNode;
   delay?: number;
   className?: string;
+  x?: number;
+  y?: number;
+  scale?: number;
 }) {
-  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const { show, reduce } = useScrollReveal(ref);
+  const cssRise = x === 0 && y > 0 && scale === 1; // the CSS fade-up on page load only fits the default "rise"
   return (
     <motion.div
-      className={className}
-      initial={reduce ? false : { opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+      ref={ref}
+      className={`${cssRise ? "reveal-rise" : ""} ${className}`}
+      style={{ animationDelay: `${delay}s` }}
+      initial={false}
+      animate={show ? { opacity: 1, x: 0, y: 0, scale: 1 } : { opacity: 0, x, y, scale }}
+      transition={show && !reduce ? { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] } : { duration: 0 }}
     >
       {children}
     </motion.div>
@@ -31,8 +46,21 @@ export function Reveal({
 }
 
 // ---------- Ring: the logo circle with the pink arc ----------
-// "arc" is how much of the circle is pink (0 to 1). The arc draws itself on load.
-export function Ring({ size = 120, arc = 0.2, stroke = 6, className = "" }: { size?: number; arc?: number; stroke?: number; className?: string }) {
+// "arc" is how much of the circle is pink (0 to 1). The arc draws itself on load,
+// or when "play" becomes true (used to draw it when it scrolls into view).
+export function Ring({
+  size = 120,
+  arc = 0.2,
+  stroke = 6,
+  className = "",
+  play = true,
+}: {
+  size?: number;
+  arc?: number;
+  stroke?: number;
+  className?: string;
+  play?: boolean;
+}) {
   const reduce = useReducedMotion();
   const r = 50 - stroke / 2;
   return (
@@ -48,11 +76,30 @@ export function Ring({ size = 120, arc = 0.2, stroke = 6, className = "" }: { si
         strokeLinecap="butt"
         transform="rotate(-90 50 50)"
         initial={reduce ? { pathLength: arc } : { pathLength: 0 }}
-        animate={{ pathLength: arc }}
+        animate={{ pathLength: play || reduce ? arc : 0 }}
         transition={{ duration: 1.4, delay: 0.2, ease: [0.65, 0, 0.35, 1] }}
       />
     </svg>
   );
+}
+
+// ---------- useScrollReveal: "show this now?" for content that animates in on scroll ----------
+// The content is visible in the HTML from the server, so it can always be read, even before
+// JavaScript has loaded. Only after the page has loaded do we hide content that is still below
+// the screen, and show it again (animated) when it scrolls into view.
+// With "reduce motion" switched on, content is never hidden.
+function useScrollReveal(ref: React.RefObject<HTMLElement | null>) {
+  const reduce = useReducedMotion();
+  const inView = useInView(ref, { once: true, margin: "0px 0px -80px 0px" });
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (reduce || !el) return;
+    if (el.getBoundingClientRect().top > window.innerHeight) setHidden(true);
+  }, [reduce, ref]);
+
+  return { show: !hidden || inView, reduce: Boolean(reduce) };
 }
 
 // ---------- HeroRing: the big animated ring on the home page ----------
@@ -106,7 +153,8 @@ export function HeroRing({ words }: { words: string[] }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center px-12 text-center">
         <p className="text-sm text-muted">we stand for</p>
         <div className="relative mt-2 h-14 w-full">
-          <AnimatePresence mode="wait">
+          {/* initial={false}: the first word is visible straight away, even before JavaScript loads */}
+          <AnimatePresence mode="wait" initial={false}>
             <motion.p
               key={words[index]}
               className="absolute inset-0 font-display text-3xl font-semibold text-pink sm:text-4xl"
@@ -179,13 +227,11 @@ export function ServiceList({ services }: { services: ServiceItem[] }) {
       {services.map((s, i) => {
         const isOpen = openSlug === s.slug;
         return (
-          <motion.li
+          <li
             key={s.id}
             id={s.slug}
-            className="scroll-mt-28"
-            initial={reduce ? false : { opacity: 0, x: -24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 + i * 0.07 }}
+            className="reveal-rise scroll-mt-28"
+            style={{ animationDelay: `${0.2 + i * 0.07}s` }}
           >
             <button
               type="button"
@@ -258,9 +304,498 @@ export function ServiceList({ services }: { services: ServiceItem[] }) {
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.li>
+          </li>
         );
       })}
     </ul>
+  );
+}
+
+// ---------- ServiceAreas: the 5 main service areas on the "Our work" page ----------
+// Desktop: a sticky menu on the left (the pink dot follows the area you are reading)
+// and the area blocks on the right. Mobile: just the blocks.
+type AreaItem = {
+  id: number;
+  slug: string;
+  title: string;
+  summary: string;
+  icon: string;
+  points: string[];
+};
+
+export function ServiceAreas({ areas }: { areas: AreaItem[] }) {
+  const reduce = useReducedMotion();
+  const [active, setActive] = useState(areas[0]?.slug ?? "");
+
+  // Scroll-spy: the area crossing the middle of the screen is the "active" one
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) setActive(entry.target.id);
+        }
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+    for (const area of areas) {
+      const el = document.getElementById(area.slug);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [areas]);
+
+  return (
+    <div className="lg:grid lg:grid-cols-[17rem_1fr] lg:gap-16">
+      <nav aria-label="Service areas" className="hidden lg:block">
+        <ul className="sticky top-28 space-y-1">
+          {areas.map((area) => {
+            const isActive = active === area.slug;
+            return (
+              <li key={area.id}>
+                <a
+                  href={`#${area.slug}`}
+                  onClick={() => setActive(area.slug)}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`relative block rounded-xl py-2.5 pl-8 pr-3 text-[0.95rem] leading-snug transition-colors ${
+                    isActive ? "font-semibold text-ink" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="area-dot"
+                      className="absolute left-2.5 top-[1.05rem] h-2.5 w-2.5 rounded-full bg-pink"
+                      transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34 }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {area.title}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="space-y-6">
+        {areas.map((area, i) => (
+          <AreaBlock key={area.id} area={area} number={i + 1} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AreaBlock({ area, number }: { area: AreaItem; number: number }) {
+  const ref = useRef<HTMLElement>(null);
+  const { show, reduce } = useScrollReveal(ref);
+
+  return (
+    <article ref={ref} id={area.slug} className="scroll-mt-28 rounded-[2rem] bg-mist p-7 sm:p-12">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+        <div className="relative h-24 w-24 shrink-0">
+          <Ring size={96} arc={0.2} stroke={5} play={show} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={area.icon} alt="" className="absolute inset-0 m-auto h-11 w-11" />
+        </div>
+        <div>
+          <p className="font-display text-sm font-semibold text-pink">{String(number).padStart(2, "0")}</p>
+          <h3 className="mt-1 font-display text-2xl font-bold leading-tight sm:text-3xl">{area.title}</h3>
+          <p className="mt-3 text-lg text-muted">{area.summary}</p>
+        </div>
+      </div>
+
+      <ul className="mt-8 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+        {area.points.map((point, j) => (
+          <motion.li
+            key={j}
+            initial={false}
+            animate={show ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+            transition={show && !reduce ? { duration: 0.4, delay: 0.15 + j * 0.05 } : { duration: 0 }}
+            className="flex gap-3 leading-relaxed"
+          >
+            <span className="mt-2.5 h-2 w-2 shrink-0 rounded-full bg-pink" aria-hidden="true" />
+            <span>{point}</span>
+          </motion.li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+// ---------- Small shared pieces ----------
+
+// Photos from our own /images folder are optimised by Next.js. Photos pasted as a full link
+// (or uploaded in the admin) are shown as they are, so any link works.
+function isOwnImage(src: string) {
+  return src.startsWith("/");
+}
+
+export function PlayIcon({ className = "h-7 w-7" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+    </svg>
+  );
+}
+
+// The logo ring around a play button: a grey circle with a pink arc.
+// "spin" = always turning slowly; "spinOnHover" = turns while the parent "group" is hovered or focused.
+// "track" is the colour of the full circle (grey like the logo, or white on photos).
+export function PlayRing({
+  spin = false,
+  spinOnHover = false,
+  track = "#b2b2b2",
+  width = 4,
+}: {
+  spin?: boolean;
+  spinOnHover?: boolean;
+  track?: string;
+  width?: number;
+}) {
+  const turning = spin
+    ? "motion-safe:animate-[spin_8s_linear_infinite]"
+    : spinOnHover
+      ? "motion-safe:group-hover:animate-[spin_3s_linear_infinite] motion-safe:group-focus-visible:animate-[spin_3s_linear_infinite]"
+      : "";
+  return (
+    <svg viewBox="0 0 100 100" className={`absolute inset-0 h-full w-full ${turning}`} aria-hidden="true">
+      <circle cx="50" cy="50" r="46" fill="none" stroke={track} strokeWidth={width} />
+      <circle
+        cx="50"
+        cy="50"
+        r="46"
+        fill="none"
+        stroke="#e71d73"
+        strokeWidth={width + 1}
+        pathLength={100}
+        strokeDasharray="22 78"
+        transform="rotate(-90 50 50)"
+      />
+    </svg>
+  );
+}
+
+// ---------- GrowLine: a thin pink line that grows to 80px when it scrolls into view ----------
+export function GrowLine({ className = "" }: { className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const { show, reduce } = useScrollReveal(ref);
+  return (
+    <motion.span
+      ref={ref}
+      aria-hidden="true"
+      className={`block h-1 bg-pink ${className}`}
+      style={{ width: 80 }}
+      initial={false}
+      animate={{ width: show ? 80 : 0 }}
+      transition={show && !reduce ? { duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] } : { duration: 0 }}
+    />
+  );
+}
+
+// ---------- FullBleedBand: the big edge-to-edge photo on the "Our work" page ----------
+export function FullBleedBand({ line }: { line: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const y = useTransform(scrollYProgress, [0, 1], ["-6%", "6%"]);
+  const scale = useTransform(scrollYProgress, [0, 1], [1.08, 1]);
+
+  return (
+    <section ref={ref} className="relative flex min-h-[60svh] items-end overflow-hidden bg-white lg:min-h-[70svh]">
+      {/* Photo + tint + gradient all fade out at the top and bottom (.feather-y), into the white page */}
+      <div className="feather-y absolute inset-0">
+        {/* The photo is a little taller than the section, so it never shows a gap while it moves */}
+        <motion.div className="absolute inset-x-0 -bottom-[10%] -top-[10%]" style={{ y: reduce ? 0 : y, scale: reduce ? 1 : scale }}>
+          <Image
+            src="/images/photos/group-trip.jpg"
+            alt="A large group of young people from Minority Matters smiling and waving on a grassy hilltop on a trip"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition: "center 60%" }}
+          />
+        </motion.div>
+        {/* Plum tint + gradient from the bottom, so the white text is always easy to read */}
+        <div className="absolute inset-0 bg-plum/30" aria-hidden="true" />
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(to top, rgba(43,15,29,0.9) 0%, rgba(43,15,29,0.72) 40%, rgba(43,15,29,0.3) 70%, rgba(43,15,29,0) 90%)" }}
+          aria-hidden="true"
+        />
+      </div>
+
+      {/* Extra bottom padding keeps the text above the faded bottom edge, where the background is still dark */}
+      <div className="relative mx-auto w-full max-w-7xl px-4 pb-28 pt-40 sm:px-6 sm:pb-32">
+        <Reveal>
+          {line && (
+            <h2 className="max-w-[14ch] font-display text-[clamp(2.5rem,7vw,5rem)] font-bold leading-[0.95] text-white">{line}</h2>
+          )}
+          <GrowLine className="mt-7" />
+          <Link
+            href="/our-founder"
+            className="mt-8 inline-flex items-center gap-3 rounded-full border-2 border-white px-6 py-3 font-semibold text-white transition-colors hover:bg-white hover:text-plum"
+          >
+            <PlayIcon className="h-4 w-4" />
+            Watch our founder&apos;s story
+          </Link>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+// ---------- GlowPhoto: a feathered photo with a soft coloured haze around it ----------
+// A blurred copy of the photo sits behind the sharp one and spreads its colours into the page,
+// and the sharp photo's edges fade out (.feather in globals.css). Give it a size with "className",
+// for example className="aspect-[4/3]". The section around it should use overflow-x-clip.
+export function GlowPhoto({
+  src,
+  alt,
+  sizes = "100vw",
+  className = "",
+  imgClassName = "",
+}: {
+  src: string;
+  alt: string;
+  sizes?: string;
+  className?: string;
+  imgClassName?: string;
+}) {
+  const own = isOwnImage(src);
+  return (
+    <div className={`photo-glow ${className}`}>
+      <div className="photo-glow-layer" aria-hidden="true">
+        <Image src={src} alt="" fill sizes="320px" quality={30} unoptimized={!own} className="object-cover" />
+      </div>
+      <Image src={src} alt={alt} fill sizes={sizes} unoptimized={!own} className={`feather object-cover ${imgClassName}`} />
+    </div>
+  );
+}
+
+// ---------- FounderTeaser: a small card that links to the founder video page ----------
+export function FounderTeaser({ name, photo }: { name: string; photo: string }) {
+  return (
+    <Link
+      href="/our-founder"
+      className="group mt-10 flex max-w-md items-center gap-5 rounded-2xl border border-grey/40 bg-white p-3 pr-6 transition hover:border-pink hover:shadow-md"
+    >
+      <span className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-xl bg-plum sm:w-40">
+        {photo && (
+          <Image
+            src={photo}
+            alt=""
+            fill
+            sizes="160px"
+            unoptimized={!isOwnImage(photo)}
+            className="object-cover transition duration-500 motion-safe:group-hover:scale-110"
+          />
+        )}
+        <span className="absolute inset-0 bg-plum/35" aria-hidden="true" />
+        <span className="absolute inset-0 m-auto flex h-12 w-12 items-center justify-center">
+          <PlayRing spinOnHover />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pink pl-0.5 text-white">
+            <PlayIcon className="h-4 w-4" />
+          </span>
+        </span>
+      </span>
+      <span>
+        <span className="block text-sm font-semibold text-pink">Hear from our founder</span>
+        <span className="mt-0.5 block font-display text-xl font-semibold leading-tight text-ink group-hover:text-pink">{name}</span>
+      </span>
+    </Link>
+  );
+}
+
+// ---------- VideoPlayer: a photo with a play button; the real player only loads after clicking ----------
+type Video = { kind: "youtube" | "vimeo" | "file" | "none"; src: string };
+
+// Turns a YouTube / Vimeo / .mp4 link into something we can play. Anything else = "none".
+export function parseVideo(url: string): Video {
+  const link = url.trim();
+  if (!link || link.includes("VIDEO_ID_HERE")) return { kind: "none", src: "" };
+
+  const youtube = link.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  if (youtube) return { kind: "youtube", src: `https://www.youtube-nocookie.com/embed/${youtube[1]}?autoplay=1&rel=0` };
+
+  const vimeo = link.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vimeo) return { kind: "vimeo", src: `https://player.vimeo.com/video/${vimeo[1]}?autoplay=1` };
+
+  if (/^(https?:\/\/|\/)\S+\.(mp4|webm)(\?\S*)?$/i.test(link)) return { kind: "file", src: link };
+
+  return { kind: "none", src: "" };
+}
+
+export function VideoPlayer({ url, poster, name }: { url: string; poster: string; name: string }) {
+  const video = parseVideo(url);
+  const canPlay = video.kind !== "none";
+  const reduce = useReducedMotion();
+  const [playing, setPlaying] = useState(false);
+  const title = `${name} on Minority Matters`;
+
+  return (
+    // While the photo shows, the box is see-through so the oval fades into the page; the playing video gets a normal dark box
+    <div className={`relative aspect-video ${playing && canPlay ? "overflow-hidden rounded-3xl bg-black" : ""}`}>
+      <AnimatePresence initial={false} mode="wait">
+        {playing && canPlay ? (
+          <motion.div
+            key="player"
+            className="absolute inset-0"
+            initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {video.kind === "file" ? (
+              <video src={video.src} controls autoPlay playsInline title={title} className="h-full w-full bg-black" />
+            ) : (
+              <iframe
+                src={video.src}
+                title={title}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                className="h-full w-full border-0"
+              />
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="poster"
+            className="absolute inset-0"
+            exit={reduce ? undefined : { opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* The photo + tint fade out in an oval (.feather-oval); the play button on top stays sharp */}
+            <div className="feather-oval absolute inset-0" aria-hidden="true">
+              {poster && (
+                <Image
+                  src={poster}
+                  alt=""
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 1024px, 100vw"
+                  unoptimized={!isOwnImage(poster)}
+                  className="object-cover"
+                />
+              )}
+              <div className="absolute inset-0 bg-plum/55" />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setPlaying(true)}
+                disabled={!canPlay}
+                aria-label={canPlay ? `Play video: ${title}` : undefined}
+                className="group flex flex-col items-center gap-4 rounded-full text-white focus-visible:outline-white disabled:cursor-not-allowed"
+              >
+                <span className="relative flex h-28 w-28 items-center justify-center sm:h-36 sm:w-36">
+                  <PlayRing spin />
+                  <span
+                    className={`flex h-20 w-20 items-center justify-center rounded-full bg-pink pl-1 shadow-lg transition sm:h-24 sm:w-24 ${
+                      canPlay ? "group-hover:scale-105 group-hover:bg-pink-dark" : "opacity-60"
+                    }`}
+                  >
+                    <PlayIcon className="h-9 w-9 sm:h-11 sm:w-11" />
+                  </span>
+                </span>
+                {!canPlay && <span className="rounded-full bg-plum/70 px-4 py-1.5 text-sm font-semibold">Video coming soon</span>}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ---------- Transcript: the first 3 paragraphs, then "Read full transcript" ----------
+// A paragraph that starts with [mm:ss] shows the time as a small pink pill.
+function TranscriptParagraph({ text }: { text: string }) {
+  const match = text.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([\s\S]*)$/);
+  if (!match) return <p className="text-lg leading-relaxed text-ink">{text}</p>;
+  return (
+    <p className="flex items-start gap-3 text-lg leading-relaxed text-ink">
+      <span className="mt-1 shrink-0 rounded-full bg-pink-soft px-2.5 py-0.5 font-mono text-sm font-semibold text-pink">
+        {match[1]}
+      </span>
+      <span>{match[2]}</span>
+    </p>
+  );
+}
+
+export function Transcript({ paragraphs }: { paragraphs: string[] }) {
+  const reduce = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  const first = paragraphs.slice(0, 3);
+  const rest = paragraphs.slice(3);
+
+  return (
+    <div>
+      <div className="space-y-4">
+        {first.map((p, i) => (
+          <TranscriptParagraph key={i} text={p} />
+        ))}
+      </div>
+      <AnimatePresence initial={false}>
+        {open && rest.length > 0 && (
+          <motion.div
+            id="transcript-more"
+            key="more"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: reduce ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-4 pt-4">
+              {rest.map((p, i) => (
+                <TranscriptParagraph key={i} text={p} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {rest.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-controls="transcript-more"
+          className="mt-6 rounded-full bg-white px-5 py-2.5 font-semibold text-ink shadow-sm transition-colors hover:bg-pink hover:text-white"
+        >
+          {open ? "Show less" : "Read full transcript"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------- ShareButton: copies the page address ----------
+export function ShareButton() {
+  const [copied, setCopied] = useState(false);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Some browsers block the clipboard: show the link so it can be copied by hand
+      window.prompt("Copy this link:", window.location.href);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copyLink}
+      className="inline-flex items-center gap-2 rounded-full border-2 border-ink px-5 py-2.5 font-semibold text-ink transition-colors hover:border-pink hover:bg-pink hover:text-white"
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+        <path
+          d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1-1"
+          strokeLinecap="round"
+        />
+      </svg>
+      <span aria-live="polite">{copied ? "Link copied" : "Share this video"}</span>
+    </button>
   );
 }

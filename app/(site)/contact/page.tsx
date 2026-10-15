@@ -45,6 +45,9 @@ export default async function ContactPage() {
         </div>
 
         <div className="rounded-[2rem] bg-mist p-6 sm:p-10">
+          {settings.referralText && (
+            <p className="mb-8 border-l-4 border-pink pl-5 text-lg leading-relaxed text-ink">{settings.referralText}</p>
+          )}
           <ContactForm />
         </div>
       </section>

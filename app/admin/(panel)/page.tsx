@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma, formatDate } from "@/lib/db";
+import { ReasonBadge } from "@/components/AdminUI";
 
 export default async function AdminDashboard() {
   const cards = [
@@ -43,7 +44,8 @@ export default async function AdminDashboard() {
               <li key={m.id} className="flex items-start justify-between gap-4 py-3">
                 <div>
                   <p className="font-semibold">
-                    {m.name} {!m.isRead && <span className="ml-2 rounded-full bg-pink px-2 py-0.5 text-xs text-white">New</span>}
+                    {m.name} {!m.isRead && <span className="ml-2 rounded-full bg-pink px-2 py-0.5 text-xs text-white">New</span>}{" "}
+                    <ReasonBadge reason={m.reason} />
                   </p>
                   <p className="line-clamp-1 text-sm text-muted">{m.message}</p>
                 </div>

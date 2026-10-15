@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
+import { REFERRAL } from "@/lib/reasons";
 
 export function Field({
   label,
@@ -160,4 +161,16 @@ export function Notice({ saved, deleted, error }: { saved?: string; deleted?: st
   if (saved) return <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Saved. The website is updated.</p>;
   if (deleted) return <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Deleted.</p>;
   return null;
+}
+
+// The reason a message was sent. "Make a referral" is pink so it stands out.
+export function ReasonBadge({ reason }: { reason: string }) {
+  const referral = reason === REFERRAL;
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${referral ? "bg-pink-soft text-pink ring-1 ring-pink" : "bg-mist text-muted"}`}
+    >
+      {reason}
+    </span>
+  );
 }

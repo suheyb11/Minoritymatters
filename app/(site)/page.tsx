@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getSettings, getServices, getValues, getPress, getPosts, getFunders, formatDate } from "@/lib/db";
-import { HeroRing, Reveal, CountUp } from "@/components/Motion";
+import { getSettings, getServices, getValues, getPress, getPosts, getFunders, formatDate, toParagraphs } from "@/lib/db";
+import { HeroRing, Reveal, CountUp, PlayIcon, PlayRing, GlowPhoto } from "@/components/Motion";
 
 const pillars = [
   {
@@ -22,7 +22,8 @@ const pillars = [
 
 export default async function HomePage() {
   const settings = await getSettings();
-  const services = await getServices();
+  const areas = (await getServices()).filter((s) => s.kind === "area"); // the 5 main service areas
+  const whoWeAre = toParagraphs(settings.whoWeAre);
   const values = await getValues();
   const press = (await getPress()).slice(0, 3);
   const posts = (await getPosts()).slice(0, 2);
@@ -45,7 +46,11 @@ export default async function HomePage() {
               </h1>
             </Reveal>
             <Reveal delay={0.3}>
-              <p className="mt-8 max-w-lg text-lg leading-relaxed text-muted">{settings.heroTagline}</p>
+              {settings.tagline && (
+                <p className="mt-8 max-w-lg font-display text-2xl font-semibold leading-snug text-pink sm:text-[1.75rem]">
+                  {settings.tagline}
+                </p>
+              )}
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/our-work"
@@ -100,6 +105,68 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ---------- Who we are: text on white + a big feathered photo that links to the founder video ---------- */}
+      {whoWeAre.length > 0 && (
+        <section className="overflow-x-clip bg-white py-20 lg:py-28" aria-labelledby="who-title">
+          <div className="mx-auto grid max-w-7xl items-center gap-6 px-4 sm:px-6 lg:grid-cols-12 lg:gap-8">
+            {/* Left: text */}
+            <Reveal className="lg:col-span-5">
+              <span className="block h-1 w-12 rounded-full bg-pink" aria-hidden="true" />
+              <h2 id="who-title" className="mt-6 font-display text-4xl font-bold text-pink md:text-5xl">
+                Who we are
+              </h2>
+              <p className="mt-5 text-lg leading-relaxed text-ink">{whoWeAre[0]}</p>
+              {whoWeAre[1] && <p className="mt-4 leading-relaxed text-muted">{whoWeAre[1]}</p>}
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/our-work"
+                  className="rounded-full bg-ink px-6 py-3.5 font-semibold text-white transition-colors hover:bg-pink"
+                >
+                  See our work
+                </Link>
+                <Link
+                  href="/our-founder"
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-pink px-6 py-3 font-semibold text-pink transition-colors hover:bg-pink hover:text-white"
+                >
+                  <PlayIcon className="h-4 w-4" />
+                  Watch our founder
+                </Link>
+              </div>
+            </Reveal>
+
+            {/* Right: big feathered photo; the whole photo is one link to the founder video */}
+            <Reveal y={0} scale={0.97} delay={0.1} className="lg:col-span-7 lg:-mr-12">
+              <Link
+                href="/our-founder"
+                aria-label={`Watch: ${settings.founderName} on Minority Matters`}
+                className="group relative block"
+              >
+                <GlowPhoto
+                  src={settings.founderPhoto || "/images/photos/hands-together.jpg"}
+                  alt="Children's hands stacked together in the middle of a circle, as a sign of teamwork"
+                  sizes="(min-width: 1024px) 60vw, 100vw"
+                  className="aspect-[4/3]"
+                  imgClassName="transition-transform duration-700 motion-safe:group-hover:scale-[1.03] motion-safe:group-focus-visible:scale-[1.03]"
+                />
+                <span className="absolute inset-0 m-auto flex h-24 w-24 items-center justify-center" aria-hidden="true">
+                  <PlayRing spinOnHover track="#ffffff" width={2} />
+                  <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-pink pl-1 text-white shadow-lg">
+                    <PlayIcon className="h-7 w-7" />
+                  </span>
+                </span>
+                <span
+                  className="absolute bottom-[6%] left-[6%] rounded-full bg-white/80 px-4 py-2 backdrop-blur-sm"
+                  aria-hidden="true"
+                >
+                  <span className="block text-sm text-ink/70">Hear from our founder</span>
+                  <span className="block font-semibold leading-tight text-ink">{settings.founderName}</span>
+                </span>
+              </Link>
+            </Reveal>
+          </div>
+        </section>
+      )}
+
       {/* ---------- Facts ---------- */}
       <section className="border-b border-mist">
         <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-y-10 px-4 py-16 sm:px-6 lg:grid-cols-4">
@@ -116,8 +183,8 @@ export default async function HomePage() {
             </dd>
           </div>
           <div className="flex flex-col-reverse gap-1 pr-4">
-            <dt className="text-muted">Age range of the children we tutor</dt>
-            <dd className="font-display text-5xl font-bold text-ink">6–18</dd>
+            <dt className="text-muted">Key stages we tutor</dt>
+            <dd className="font-display text-5xl font-bold text-ink">KS1–4</dd>
           </div>
           <div className="flex flex-col-reverse gap-1 pr-4">
             <dt className="text-muted">London boroughs we work in</dt>
@@ -135,17 +202,16 @@ export default async function HomePage() {
             <Reveal>
               <h2 className="font-display text-5xl font-bold lowercase text-ink sm:text-6xl">our work</h2>
               <p className="mt-3 max-w-xl text-lg text-muted">
-                Programmes for children, parents, teachers and professionals — built with the community, for the
-                community.
+                Our five main service areas — built with the community, for the community.
               </p>
             </Reveal>
             <Link href="/our-work" className="font-semibold text-pink underline-offset-4 hover:underline">
-              View all programmes
+              See all our work
             </Link>
           </div>
 
           <ul className="mt-12 grid gap-4 md:grid-cols-2">
-            {services.map((s, i) => (
+            {areas.map((s, i) => (
               <Reveal key={s.id} delay={Math.min(i * 0.05, 0.25)}>
                 <li>
                   <Link
@@ -205,13 +271,13 @@ export default async function HomePage() {
               {press.map((item) => (
                 <li key={item.id}>
                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block">
-                    <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-grey/30">
+                    <div className="aspect-[4/3] overflow-hidden">
                       {item.image && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.image}
                           alt=""
-                          className="h-full w-full object-cover grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
+                          className="feather-soft h-full w-full object-cover grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
                         />
                       )}
                     </div>

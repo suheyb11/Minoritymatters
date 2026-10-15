@@ -37,8 +37,8 @@ export default function Footer({ settings }: { settings: Setting }) {
             <span className="text-pink">matters</span>
           </p>
           <p className="mt-5 max-w-sm text-white/70">
-            Working with minority communities in London since 2010 to support children&apos;s education, empower
-            parents and keep young people safe.
+            {settings.communityLine ||
+              "Working with minority communities in London since 2010 to support children's education, empower parents and keep young people safe."}
           </p>
           <ul className="mt-6 flex gap-3">
             {socials.map((s) => (
@@ -82,6 +82,7 @@ export default function Footer({ settings }: { settings: Setting }) {
               ["/press", "Press"],
               ["/blog", "Blog"],
               ["/about", "About"],
+              ["/our-founder", "Our founder"],
               ["/values", "Values"],
               ["/our-funders", "Our funders"],
               ["/contact", "Contact"],

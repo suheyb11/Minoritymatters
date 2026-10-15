@@ -55,6 +55,8 @@ when you want to start over — on Supabase this also wipes everything changed i
 | `npm run db:studio` | Opens Prisma Studio in the browser to look at and edit the data |
 | `npm run data:export` | Saves every row to `backup/data.json` (a good regular backup) |
 | `npm run data:import` | Loads `backup/data.json` into an empty database (the one in `DATABASE_URL`) and resets the id counters |
+| `npx tsx scripts/brochure-update.ts` | One-time: adds the brochure content (service areas, Who we are, referral text) to an existing database. Safe to run again. |
+| `npx tsx scripts/founder-seed.ts` | One-time: fills the Our founder settings (placeholders) in an existing database. Only fills empty fields. |
 | `npm run media:move` | Creates the `media` bucket, uploads any files from `uploads/` and fixes old `/media/...` addresses |
 
 ## Pages
@@ -62,12 +64,13 @@ when you want to start over — on Supabase this also wipes everything changed i
 | Page | Address | Content comes from |
 |---|---|---|
 | Home | `/` | Site settings, programmes, values, press, blog, funders |
-| Our work | `/our-work` | Admin → Our work (animated programme list that opens and closes) |
+| Our work | `/our-work` | Admin → Our work: 5 service areas (Type = Service area) and the programmes list (Type = Programme) |
 | Press | `/press` | Admin → Press |
 | Blog | `/blog`, `/blog/[slug]` | Admin → Blog |
 | About | `/about` | Admin → Site settings (About section) |
 | Values | `/values` | Admin → Values |
 | Our funders | `/our-funders` | Admin → Funders |
+| Our founder | `/our-founder` | Admin → Site settings (Founder video). Linked from the home page, About, Our work and the footer |
 | Contact | `/contact` | Form saves to Admin → Messages |
 
 ## Admin panel
@@ -99,10 +102,13 @@ lib/
 prisma/
   schema.prisma      database tables
   seed.ts            starting content from the old website
+  brochure.ts        text from the brochure (used by the seed and scripts/brochure-update.ts)
   migrations/        database changes (created by prisma migrate)
 scripts/
   copy-old-sqlite.ts one-time copy from the old data/minoritymatters.db
   move-uploads.ts    creates the media bucket and moves uploads/ files into it
+  brochure-update.ts one-time brochure content update for an existing database
+  founder-seed.ts    one-time founder video placeholders for an existing database
   export-data.ts     backup to backup/data.json
   import-data.ts     restore from backup/data.json
 ```

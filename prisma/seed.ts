@@ -3,6 +3,7 @@
 // WARNING: it deletes everything in the database first, then adds the original content again.
 
 import { PrismaClient } from "@prisma/client";
+import { BROCHURE_SETTINGS, FOUNDER_SETTINGS, SERVICE_AREAS, POSITIVE_ALTERNATIVE } from "./brochure";
 
 const prisma = new PrismaClient();
 
@@ -19,8 +20,9 @@ async function main() {
   // ---------- Settings ----------
   await prisma.setting.create({ data: {
       id: 1,
-      heroTagline:
-        "A London charity working with minority communities since 2010 — supporting children's education, empowering parents and keeping young people safe.",
+      heroTagline:""
+        // "A London charity working with minority communities since 2010 — supporting children's education, empowering parents and keeping young people safe."
+        ,
       introHeading: "Welcome to Minority Matters.",
       introSubtitle: "A charity focused on community engagement through educational projects.",
       introText:
@@ -47,13 +49,22 @@ async function main() {
         "In addition, we utilise professional and personal experiences to influence available statutory service delivery and the creation of new ones, such as those responding to the issues of grooming and criminal exploitation of children and young people.",
         "Minority Matters continues to assess community needs by developing programmes that will ensure parents are empowered and equipped with the skills and tools they need to better help, safeguard and protect their family. We want families to seek and find trusted community led provision/support available locally and foster communication so that cultural barriers are reduced. We provide tailor-made services and capacity built by the community for the community. We seek the reduction of gaps between statutory bodies and hard to reach communities, building trust on both sides and access to services, as well as bringing about positive changes.",
       ].join("\n\n"),
+      ...BROCHURE_SETTINGS,
+      ...FOUNDER_SETTINGS,
   } });
 
-  // ---------- Our work (services) ----------
+  // ---------- Our work: the 5 main service areas (from the brochure) ----------
+  for (let i = 0; i < SERVICE_AREAS.length; i++) {
+    const a = SERVICE_AREAS[i];
+    await prisma.service.create({
+      data: { ...a, points: a.points.join("\n"), kind: "area", intro: "", outro: "", sortOrder: i + 1 },
+    });
+  }
+
+  // ---------- Our work: the named programmes ----------
   const services = [
     {
-      title: "Educational support, activities and career advice",
-      slug: "educational-support",
+      ...POSITIVE_ALTERNATIVE,
       summary: "Core-subject tutoring for children aged 6–18, career advice, mentoring and holiday activities.",
       icon: "/images/icons/education.svg",
       intro: "Positive Alternative – Minority Matters Enriched-Educational Programme:",
@@ -106,19 +117,6 @@ async function main() {
       outro: "",
     },
     {
-      title: "Campaign against the criminal grooming and exploitation of children & young people",
-      slug: "campaign-against-cce",
-      summary: "Gathering evidence and amplifying parents' voices to change the law.",
-      icon: "/images/icons/minorities-matter.svg",
-      intro: "",
-      points: [
-        "Gathering information and evidence from affected families",
-        "Amplifying the voices of parents with decision-makers",
-        "Campaigning for legislation that better protects victims of criminal grooming and exploitation",
-      ],
-      outro: "",
-    },
-    {
       title: "Community Parent Champions Programme",
       slug: "community-parent-champions",
       summary: "Personal development classes for parents and joint workshops with Islington Council.",
@@ -165,7 +163,7 @@ async function main() {
 
   for (let i = 0; i < services.length; i++) {
     const s = services[i];
-    await prisma.service.create({ data: { ...s, points: s.points.join("\n"), sortOrder: i + 1 } });
+    await prisma.service.create({ data: { ...s, points: s.points.join("\n"), kind: "programme", sortOrder: i + 1 } });
   }
 
   // ---------- Values ----------

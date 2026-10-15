@@ -14,8 +14,9 @@ import { requireAdmin, checkPasswordAndLogIn, logOut } from "@/lib/auth";
 
 // ---------- Small helpers ----------
 
+// Browsers send line breaks as "\r\n"; store them as plain "\n"
 function text(formData: FormData, name: string) {
-  return String(formData.get(name) || "").trim();
+  return String(formData.get(name) || "").replace(/\r\n/g, "\n").trim();
 }
 
 function num(formData: FormData, name: string) {
@@ -93,6 +94,16 @@ export async function saveSettings(formData: FormData) {
       aboutStory: text(formData, "aboutStory"),
       vision: text(formData, "vision"),
       mission: text(formData, "mission"),
+      whoWeAre: text(formData, "whoWeAre"),
+      referralText: text(formData, "referralText"),
+      tagline: text(formData, "tagline"),
+      communityLine: text(formData, "communityLine"),
+      founderName: text(formData, "founderName"),
+      founderRole: text(formData, "founderRole"),
+      founderPhoto: await imageFrom(formData, "founderPhoto"),
+      founderVideoUrl: text(formData, "founderVideoUrl"),
+      founderIntro: text(formData, "founderIntro"),
+      founderTranscript: text(formData, "founderTranscript"),
     },
   });
   refreshSite();
@@ -115,6 +126,7 @@ export async function saveService(formData: FormData) {
     icon: await imageFrom(formData, "icon"),
     sortOrder: num(formData, "sortOrder"),
     published: checkbox(formData, "published"),
+    kind: text(formData, "kind") === "area" ? "area" : "programme",
   };
 
   try {

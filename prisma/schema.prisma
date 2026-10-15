@@ -33,9 +33,21 @@ model Setting {
   aboutStory    String @default("")
   vision        String @default("")
   mission       String @default("")
+  // Text from the brochure
+  whoWeAre      String @default("")
+  referralText  String @default("")
+  tagline       String @default("")
+  communityLine String @default("")
+  // The "Our founder" video page (/our-founder)
+  founderName       String @default("")
+  founderRole       String @default("")
+  founderPhoto      String @default("") // also the picture shown before the video plays
+  founderVideoUrl   String @default("") // YouTube, Vimeo or .mp4 link
+  founderIntro      String @default("")
+  founderTranscript String @default("") // lines starting with [mm:ss] show a time
 }
 
-// "Our work" programmes
+// "Our work": the 5 main service areas and the named programmes
 model Service {
   id        Int     @id @default(autoincrement())
   title     String
@@ -47,6 +59,7 @@ model Service {
   icon      String  @default("/images/icons/promotion.svg")
   sortOrder Int     @default(0)
   published Boolean @default(true)
+  kind      String  @default("programme") // "area" = one of the 5 main service areas, "programme" = a named programme
 }
 
 model Value {
@@ -94,6 +107,7 @@ model Message {
   email     String
   phone     String   @default("")
   message   String
+  reason    String   @default("General enquiry") // one of the choices in lib/reasons.ts
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 }

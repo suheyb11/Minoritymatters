@@ -1,6 +1,6 @@
 import { getMessages } from "@/lib/db";
 import { toggleMessageRead, deleteMessage } from "../../actions";
-import { DeleteButton, AdminTitle, Notice } from "@/components/AdminUI";
+import { DeleteButton, AdminTitle, Notice, ReasonBadge } from "@/components/AdminUI";
 
 export default async function MessagesAdmin({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   const { deleted } = await searchParams;
@@ -19,7 +19,8 @@ export default async function MessagesAdmin({ searchParams }: { searchParams: Pr
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="font-semibold">
-                  {m.name} {!m.isRead && <span className="ml-2 rounded-full bg-pink px-2 py-0.5 text-xs text-white">New</span>}
+                  {m.name} {!m.isRead && <span className="ml-2 rounded-full bg-pink px-2 py-0.5 text-xs text-white">New</span>}{" "}
+                    <ReasonBadge reason={m.reason} />
                 </p>
                 <p className="text-sm text-muted">
                   <a href={`mailto:${m.email}`} className="hover:text-pink">{m.email}</a>

@@ -1,13 +1,20 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { sendMessage, type ContactState } from "./actions";
+import { REASONS, REFERRAL } from "@/lib/reasons";
 
 const startState: ContactState = { ok: false, error: "" };
 
 export default function ContactForm() {
   const [state, formAction, pending] = useActionState(sendMessage, startState);
+  const [reason, setReason] = useState(REASONS[0]);
+
+  // /contact?reason=referral opens the form with "Make a referral" already chosen
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("reason") === "referral") setReason(REFERRAL);
+  }, []);
 
   return (
     <AnimatePresence mode="wait">
@@ -34,10 +41,22 @@ export default function ContactForm() {
               <input name="email" type="email" required autoComplete="email" className="field" />
             </label>
           </div>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold">Phone</span>
-            <input name="phone" type="tel" autoComplete="tel" className="field" />
-          </label>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold">Phone</span>
+              <input name="phone" type="tel" autoComplete="tel" className="field" />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-semibold">Reason</span>
+              <select name="reason" value={reason} onChange={(e) => setReason(e.target.value)} className="field">
+                {REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold">Message *</span>
             <textarea name="message" required rows={6} className="field" />

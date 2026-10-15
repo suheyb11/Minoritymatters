@@ -39,7 +39,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       {post.coverImage && (
         <div className="mx-auto max-w-4xl px-4 pt-12 sm:px-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.coverImage} alt="" className="w-full rounded-3xl object-cover" />
+          <img src={post.coverImage} alt="" className="feather w-full object-cover" />
         </div>
       )}
 

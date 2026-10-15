@@ -11,7 +11,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         Skip to content
       </a>
       <Header donateUrl={settings.donateUrl} />
-      <main id="main">{children}</main>
+      {/* overflow-x-clip: soft photo hazes may spread past the edge of the screen without causing sideways scrolling */}
+      <main id="main" className="overflow-x-clip">
+        {children}
+      </main>
       <Footer settings={settings} />
     </>
   );

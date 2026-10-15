@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { REASONS } from "@/lib/reasons";
 
 export type ContactState = { ok: boolean; error: string };
 
@@ -10,9 +11,11 @@ export async function sendMessage(_prev: ContactState, formData: FormData): Prom
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
   const message = String(formData.get("message") || "").trim();
+  const reason = String(formData.get("reason") || REASONS[0]);
   const website = String(formData.get("website") || ""); // hidden field: bots fill it, people don't
 
   if (website) return { ok: true, error: "" };
+  if (!REASONS.includes(reason)) return { ok: false, error: "Please choose a reason from the list." };
   if (!name || !email || !message) return { ok: false, error: "Please fill in your name, email and message." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Please enter a valid email address." };
   if (message.length > 5000) return { ok: false, error: "Your message is too long. Please keep it under 5,000 characters." };
@@ -23,6 +26,7 @@ export async function sendMessage(_prev: ContactState, formData: FormData): Prom
       email: email.slice(0, 200),
       phone: phone.slice(0, 50),
       message,
+      reason,
     },
   });
   return { ok: true, error: "" };

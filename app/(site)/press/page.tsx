@@ -25,13 +25,13 @@ export default async function PressPage() {
             <li key={item.id}>
               <Reveal delay={(i % 3) * 0.08}>
                 <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block">
-                  <div className="aspect-[16/10] overflow-hidden rounded-2xl bg-mist">
+                  <div className="aspect-[16/10] overflow-hidden">
                     {item.image && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.image}
                         alt=""
-                        className="h-full w-full object-cover grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
+                        className="feather-soft h-full w-full object-cover grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
                       />
                     )}
                   </div>

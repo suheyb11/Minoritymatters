@@ -21,7 +21,7 @@ export default async function BlogPage() {
                 <Link href={`/blog/${post.slug}`} className="group grid gap-6 py-10 sm:grid-cols-[1fr_2.5fr]">
                   {post.coverImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.coverImage} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" />
+                    <img src={post.coverImage} alt="" className="feather aspect-[4/3] w-full object-cover" />
                   ) : (
                     <time className="text-muted" dateTime={post.publishedAt.toISOString()}>
                       {formatDate(post.publishedAt)}

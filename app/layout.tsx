@@ -9,6 +9,11 @@ import "./globals.css";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
+  // The site's full address, so share images (Open Graph) get a complete link.
+  // On Vercel this is the production domain; on your computer it is localhost.
+  metadataBase: new URL(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"
+  ),
   title: {
     default: "Minority Matters — community, education and child safeguarding in London",
     template: "%s | Minority Matters",

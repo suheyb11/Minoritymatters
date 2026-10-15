@@ -1,6 +1,6 @@
 import { getSettings, getValues, toParagraphs } from "@/lib/db";
 import PageHeader from "@/components/PageHeader";
-import { Reveal } from "@/components/Motion";
+import { Reveal, FounderTeaser, GlowPhoto } from "@/components/Motion";
 
 export const metadata = { title: "About" };
 
@@ -32,6 +32,7 @@ const milestones = [
 export default async function AboutPage() {
   const settings = await getSettings();
   const values = await getValues();
+  const whoWeAre = toParagraphs(settings.whoWeAre);
 
   return (
     <>
@@ -43,8 +44,29 @@ export default async function AboutPage() {
             <Highlight text={settings.aboutLead} />
           </p>
         </Reveal>
+        {whoWeAre.length > 0 && (
+          <div className="mt-16 grid items-center gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+            <Reveal>
+              <h2 className="font-display text-4xl font-bold text-pink">Who we are</h2>
+              {whoWeAre.map((p, i) => (
+                <p key={i} className={`mt-5 leading-relaxed ${i === 0 ? "text-xl text-ink" : "text-lg text-muted"}`}>
+                  {p}
+                </p>
+              ))}
+              <FounderTeaser name={settings.founderName} photo={settings.founderPhoto} />
+            </Reveal>
+            <Reveal delay={0.1}>
+              <GlowPhoto
+                src="/images/photos/group-trip.jpg"
+                alt="A large group of young people from Minority Matters smiling and waving on a grassy hilltop on a trip"
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="aspect-[4/3]"
+              />
+            </Reveal>
+          </div>
+        )}
         <Reveal delay={0.1}>
-          <p className="mt-10 max-w-3xl text-lg leading-relaxed text-muted">{settings.aboutStory}</p>
+          <p className="mt-16 max-w-3xl text-lg leading-relaxed text-muted">{settings.aboutStory}</p>
         </Reveal>
       </section>
 

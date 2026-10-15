@@ -56,11 +56,87 @@ h4 {
   animation-play-state: paused;
 }
 
+/* Fade-up when the page first appears. Done in CSS so it works even before JavaScript loads
+   (used by <Reveal>; content further down the page is animated on scroll by JavaScript instead). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+}
+.reveal-rise {
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* ---------- Feathered photos ----------
+   These fade a photo's edges to transparent, so it melts into the background behind it
+   (white on most pages) instead of having a hard edge, border or rounded box.
+   Use them on content photos only — never on logos or icons. */
+
+/* All four edges fade (14% on each side) */
+.feather {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* A softer, thinner fade (6%) for small thumbnails */
+.feather-soft {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* An oval vignette: sharp in the middle, fully faded at the middle of every edge
+   ("closest-side" makes the oval touch each side, so no straight edge shows) */
+.feather-oval {
+  -webkit-mask-image: radial-gradient(ellipse closest-side at 50% 50%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse closest-side at 50% 50%, #000 55%, transparent 100%);
+}
+
+/* Only the top and bottom edges fade — for full-width bands */
+.feather-y {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+}
+
+/* Wrapper for a photo with a soft coloured haze around it (see <GlowPhoto> in components/Motion.tsx):
+   a blurred copy of the photo sits behind the feathered photo and spreads its colours into the page. */
+.photo-glow {
+  position: relative;
+  isolation: isolate;
+}
+.photo-glow-layer {
+  position: absolute;
+  inset: -8%;
+  z-index: -1;
+  filter: blur(40px) saturate(1.2);
+  opacity: 0.35;
+  pointer-events: none;
+}
+/* On phones the photo is small, so the same haze would look like grey fog — keep it lighter */
+@media (max-width: 1023px) {
+  .photo-glow-layer {
+    opacity: 0.22;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  .marquee-track {
+  .marquee-track,
+  .reveal-rise {
     animation: none;
   }
 }
