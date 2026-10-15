@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* Brand colours taken from the Minority Matters logo and icons */
+@theme {
+  --color-pink: #e71d73;
+  --color-pink-dark: #c3135f;
+  --color-pink-soft: #fde8f1;
+  --color-grey: #b2b2b2;
+  --color-ink: #2a2730;
+  --color-muted: #6b6772;
+  --color-mist: #f5f4f6;
+  --color-plum: #2b0f1d;
+
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+  --font-sans: "Figtree Variable", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-pink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Funders logo strip that slides slowly */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee 40s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track {
+    animation: none;
+  }
+}
+
+/* Simple styling for admin form fields */
+.field {
+  width: 100%;
+  border: 1px solid #d9d6dd;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+  font-size: 0.95rem;
+}
+.field:focus {
+  outline: 2px solid var(--color-pink);
+  outline-offset: 0;
+  border-color: transparent;
+}
