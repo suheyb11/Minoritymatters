@@ -4,7 +4,7 @@ import { DeleteButton, AdminTitle, Notice } from "@/components/AdminUI";
 
 export default async function MessagesAdmin({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
   const { deleted } = await searchParams;
-  const messages = getMessages();
+  const messages = await getMessages();
 
   return (
     <>
@@ -26,7 +26,7 @@ export default async function MessagesAdmin({ searchParams }: { searchParams: Pr
                   {m.phone && <> · <a href={`tel:${m.phone}`} className="hover:text-pink">{m.phone}</a></>}
                 </p>
               </div>
-              <p className="text-sm text-muted">{new Date(m.createdAt + "Z").toLocaleString("en-GB")}</p>
+              <p className="text-sm text-muted">{m.createdAt.toLocaleString("en-GB")}</p>
             </div>
             <p className="mt-4 whitespace-pre-line leading-relaxed">{m.message}</p>
             <div className="mt-4 flex flex-wrap gap-2">

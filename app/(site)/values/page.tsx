@@ -4,8 +4,8 @@ import { Reveal } from "@/components/Motion";
 
 export const metadata = { title: "Values" };
 
-export default function ValuesPage() {
-  const values = getValues();
+export default async function ValuesPage() {
+  const values = await getValues();
 
   return (
     <>

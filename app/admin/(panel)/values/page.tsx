@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getValues, getRowById, type Value } from "@/lib/db";
+import { getValues, prisma } from "@/lib/db";
 import { saveValue, deleteValue } from "../../actions";
 import { Field, TextArea, ImageField, SaveButton, DeleteButton, AdminTitle, Notice } from "@/components/AdminUI";
 
@@ -7,8 +7,8 @@ type Params = { edit?: string; new?: string; saved?: string; deleted?: string };
 
 export default async function ValuesAdmin({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const values = getValues();
-  const editing = params.edit ? getRowById<Value>("Value", Number(params.edit)) : undefined;
+  const values = await getValues();
+  const editing = params.edit ? await prisma.value.findUnique({ where: { id: Number(params.edit) } }) : null;
   const showForm = Boolean(editing || params.new);
 
   return (

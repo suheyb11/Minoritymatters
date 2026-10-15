@@ -4,8 +4,8 @@ import { Reveal } from "@/components/Motion";
 
 export const metadata = { title: "Our funders" };
 
-export default function FundersPage() {
-  const funders = getFunders();
+export default async function FundersPage() {
+  const funders = await getFunders();
   const withLogo = funders.filter((f) => f.logo);
 
   return (

@@ -4,7 +4,7 @@ import { Field, TextArea, SaveButton, AdminTitle, Notice } from "@/components/Ad
 
 export default async function SettingsAdmin({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const { saved } = await searchParams;
-  const s = getSettings();
+  const s = await getSettings();
 
   return (
     <>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getServices, getRowById, type Service } from "@/lib/db";
+import { getServices, prisma } from "@/lib/db";
 import { saveService, deleteService } from "../../actions";
 import { Field, TextArea, ImageField, Checkbox, SaveButton, DeleteButton, AdminTitle, Notice } from "@/components/AdminUI";
 
@@ -7,8 +7,8 @@ type Params = { edit?: string; new?: string; saved?: string; deleted?: string; e
 
 export default async function ServicesAdmin({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const services = getServices(true);
-  const editing = params.edit ? getRowById<Service>("Service", Number(params.edit)) : undefined;
+  const services = await getServices(true);
+  const editing = params.edit ? await prisma.service.findUnique({ where: { id: Number(params.edit) } }) : null;
   const showForm = Boolean(editing || params.new);
 
   return (
@@ -30,7 +30,7 @@ export default async function ServicesAdmin({ searchParams }: { searchParams: Pr
             <Field label="Web address (slug)" name="slug" defaultValue={editing?.slug} hint="Leave empty to create it from the title." />
             <Field label="Order" name="sortOrder" type="number" defaultValue={editing?.sortOrder ?? services.length + 1} hint="Lower numbers show first." />
           </div>
-          <Checkbox label="Show on website" name="published" defaultChecked={editing ? editing.published === 1 : true} />
+          <Checkbox label="Show on website" name="published" defaultChecked={editing ? editing.published : true} />
           <div className="flex gap-3">
             <SaveButton />
             <Link href="/admin/services" className="rounded-full px-5 py-2.5 font-semibold text-muted hover:bg-mist">Cancel</Link>

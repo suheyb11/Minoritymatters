@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Setting } from "@/lib/db";
+import type { Setting } from "@prisma/client";
 
 // Simple social icons (drawn with SVG so we don't need an icon library)
 function SocialIcon({ name }: { name: string }) {

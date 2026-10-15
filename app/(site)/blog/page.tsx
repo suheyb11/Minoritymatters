@@ -5,8 +5,8 @@ import { Reveal } from "@/components/Motion";
 
 export const metadata = { title: "Blog" };
 
-export default function BlogPage() {
-  const posts = getPosts();
+export default async function BlogPage() {
+  const posts = await getPosts();
 
   return (
     <>
@@ -23,7 +23,7 @@ export default function BlogPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={post.coverImage} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" />
                   ) : (
-                    <time className="text-muted" dateTime={post.publishedAt}>
+                    <time className="text-muted" dateTime={post.publishedAt.toISOString()}>
                       {formatDate(post.publishedAt)}
                     </time>
                   )}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { logoutAction } from "../actions";
 
 export const metadata = { title: "Admin", robots: { index: false } };
@@ -19,7 +19,7 @@ const menu = [
 // Every page inside (panel) needs the admin to be logged in
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
-  const unread = (db.prepare("SELECT COUNT(*) AS c FROM Message WHERE isRead = 0").get() as { c: number }).c;
+  const unread = await prisma.message.count({ where: { isRead: false } });
 
   return (
     <div className="min-h-screen bg-white lg:flex">

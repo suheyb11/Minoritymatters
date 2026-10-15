@@ -1,24 +1,23 @@
 // Starting content for the database, copied from the current minoritymatters.org.uk website.
-// lib/db.ts runs seedDatabase() automatically the first time the site starts (when the database is empty).
+// Run it with: npm run db:seed
+// WARNING: it deletes everything in the database first, then adds the original content again.
 
-import type Database from "better-sqlite3";
+import { PrismaClient } from "@prisma/client";
 
-// Small helper: insert one row. Example: insert(db, "Funder", { name: "City Bridge Trust" })
-function insert(db: Database.Database, table: string, row: Record<string, unknown>) {
-  const columns = Object.keys(row);
-  const values = columns.map((c) => {
-    const v = row[c];
-    if (typeof v === "boolean") return v ? 1 : 0;
-    if (v instanceof Date) return v.toISOString();
-    return v;
-  });
-  const sql = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
-  db.prepare(sql).run(...values);
-}
+const prisma = new PrismaClient();
 
-export function seedDatabase(db: Database.Database) {
+async function main() {
+  // ---------- Start with empty tables ----------
+  await prisma.message.deleteMany();
+  await prisma.funder.deleteMany();
+  await prisma.post.deleteMany();
+  await prisma.pressItem.deleteMany();
+  await prisma.value.deleteMany();
+  await prisma.service.deleteMany();
+  await prisma.setting.deleteMany();
+
   // ---------- Settings ----------
-  insert(db, "Setting", {
+  await prisma.setting.create({ data: {
       id: 1,
       heroTagline:
         "A London charity working with minority communities since 2010 — supporting children's education, empowering parents and keeping young people safe.",
@@ -48,7 +47,7 @@ export function seedDatabase(db: Database.Database) {
         "In addition, we utilise professional and personal experiences to influence available statutory service delivery and the creation of new ones, such as those responding to the issues of grooming and criminal exploitation of children and young people.",
         "Minority Matters continues to assess community needs by developing programmes that will ensure parents are empowered and equipped with the skills and tools they need to better help, safeguard and protect their family. We want families to seek and find trusted community led provision/support available locally and foster communication so that cultural barriers are reduced. We provide tailor-made services and capacity built by the community for the community. We seek the reduction of gaps between statutory bodies and hard to reach communities, building trust on both sides and access to services, as well as bringing about positive changes.",
       ].join("\n\n"),
-  });
+  } });
 
   // ---------- Our work (services) ----------
   const services = [
@@ -166,7 +165,7 @@ export function seedDatabase(db: Database.Database) {
 
   for (let i = 0; i < services.length; i++) {
     const s = services[i];
-    insert(db, "Service", { ...s, points: s.points.join("\n"), sortOrder: i + 1 });
+    await prisma.service.create({ data: { ...s, points: s.points.join("\n"), sortOrder: i + 1 } });
   }
 
   // ---------- Values ----------
@@ -182,7 +181,7 @@ export function seedDatabase(db: Database.Database) {
     ["Expanding horizons", "expanding-horizons", "Our ultimate goal is to ensure that minority communities enjoy the same benefits as communities who are more engaged and involved in decision making at the local level."],
   ];
   for (let i = 0; i < values.length; i++) {
-    insert(db, "Value", { title: values[i][0], icon: `/images/icons/${values[i][1]}.svg`, text: values[i][2], sortOrder: i + 1 });
+    await prisma.value.create({ data: { title: values[i][0], icon: `/images/icons/${values[i][1]}.svg`, text: values[i][2], sortOrder: i + 1 } });
   }
 
   // ---------- Press ----------
@@ -197,13 +196,13 @@ export function seedDatabase(db: Database.Database) {
     ["The mums sending their children to Somalia to keep them safe from London gangs", "Channel 4 News", "https://www.channel4.com/news/the-mums-sending-their-children-to-somalia-to-keep-them-safe-from-london-gangs", img + "2.png"],
   ];
   for (let i = 0; i < press.length; i++) {
-    insert(db, "PressItem", { title: press[i][0], source: press[i][1], url: press[i][2], image: press[i][3], sortOrder: i + 1 });
+    await prisma.pressItem.create({ data: { title: press[i][0], source: press[i][1], url: press[i][2], image: press[i][3], sortOrder: i + 1 } });
   }
 
   // ---------- Blog ----------
   // Only the opening of each original post is included here.
   // Paste the full text of each article from the admin panel (Admin > Blog > Edit).
-  insert(db, "Post", {
+  await prisma.post.create({ data: {
       title: "Message to London Mayoral Candidates: End Child Criminal Exploitation!",
       slug: "message-to-london-mayoral-candidates-end-child-criminal-exploitation",
       excerpt:
@@ -211,8 +210,8 @@ export function seedDatabase(db: Database.Database) {
       body:
         "“I can't believe this goes on in London”, “I'm so angry at the police, why isn't anyone doing something to stop this”. At Minority Matters, we hear variations of the above on a regular basis. We wouldn't believe it either, had we not experienced it first hand. The “it” being criminal exploitation of children and young people.",
       publishedAt: new Date("2021-04-23"),
-  });
-  insert(db, "Post", {
+  } });
+  await prisma.post.create({ data: {
       title: "Finding a new normal for charities",
       slug: "finding-a-new-normal-for-charities",
       author: "Aisha Rhmed",
@@ -220,7 +219,7 @@ export function seedDatabase(db: Database.Database) {
       body:
         "The current pandemic poses new challenges for charities. Over the years, we learned the importance of adapting to the needs of our service users. This meant that we operate an open door policy that extended itself to the needs of the communities we served. Oftentimes, people come to us for help and support.",
       publishedAt: new Date("2020-04-23"),
-  });
+  } });
 
   // ---------- Funders ----------
   const funders = [
@@ -239,7 +238,15 @@ export function seedDatabase(db: Database.Database) {
     { name: "Awards For All" },
   ];
   for (let i = 0; i < funders.length; i++) {
-    insert(db, "Funder", { ...funders[i], sortOrder: i + 1 });
+    await prisma.funder.create({ data: { ...funders[i], sortOrder: i + 1 } });
   }
 
+  console.log("Database filled with the starting content.");
 }
+
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

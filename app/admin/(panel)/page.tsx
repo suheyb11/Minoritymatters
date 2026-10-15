@@ -1,20 +1,16 @@
 import Link from "next/link";
-import { db, getMessages, formatDate } from "@/lib/db";
+import { prisma, formatDate } from "@/lib/db";
 
-function count(table: string) {
-  return (db.prepare(`SELECT COUNT(*) AS c FROM ${table}`).get() as { c: number }).c;
-}
-
-export default function AdminDashboard() {
+export default async function AdminDashboard() {
   const cards = [
-    { label: "Messages", value: count("Message"), href: "/admin/messages" },
-    { label: "Programmes", value: count("Service"), href: "/admin/services" },
-    { label: "Blog posts", value: count("Post"), href: "/admin/blog" },
-    { label: "Press items", value: count("PressItem"), href: "/admin/press" },
-    { label: "Values", value: count("Value"), href: "/admin/values" },
-    { label: "Funders", value: count("Funder"), href: "/admin/funders" },
+    { label: "Messages", value: await prisma.message.count(), href: "/admin/messages" },
+    { label: "Programmes", value: await prisma.service.count(), href: "/admin/services" },
+    { label: "Blog posts", value: await prisma.post.count(), href: "/admin/blog" },
+    { label: "Press items", value: await prisma.pressItem.count(), href: "/admin/press" },
+    { label: "Values", value: await prisma.value.count(), href: "/admin/values" },
+    { label: "Funders", value: await prisma.funder.count(), href: "/admin/funders" },
   ];
-  const latest = getMessages().slice(0, 5);
+  const latest = await prisma.message.findMany({ orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 5 });
 
   return (
     <>

@@ -5,8 +5,8 @@ import { ServiceList, Reveal } from "@/components/Motion";
 
 export const metadata = { title: "Our work" };
 
-export default function OurWorkPage() {
-  const services = getServices().map((s) => ({
+export default async function OurWorkPage() {
+  const services = (await getServices()).map((s) => ({
     id: s.id,
     slug: s.slug,
     title: s.title,

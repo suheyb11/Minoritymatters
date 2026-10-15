@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
   experimental: {
-    serverActions: { bodySizeLimit: "6mb" }, // allow image uploads up to 5 MB
+    serverActions: { bodySizeLimit: "4.5mb" }, // allow image uploads up to 4 MB (Vercel limit is 4.5 MB)
   },
 };
 

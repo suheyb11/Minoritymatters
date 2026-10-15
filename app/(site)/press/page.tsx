@@ -4,9 +4,9 @@ import { Reveal } from "@/components/Motion";
 
 export const metadata = { title: "Press" };
 
-export default function PressPage() {
-  const press = getPress();
-  const settings = getSettings();
+export default async function PressPage() {
+  const press = await getPress();
+  const settings = await getSettings();
 
   return (
     <>

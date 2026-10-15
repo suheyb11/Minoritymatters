@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPress, getRowById, type PressItem } from "@/lib/db";
+import { getPress, prisma } from "@/lib/db";
 import { savePress, deletePress } from "../../actions";
 import { Field, ImageField, SaveButton, DeleteButton, AdminTitle, Notice } from "@/components/AdminUI";
 
@@ -7,8 +7,8 @@ type Params = { edit?: string; new?: string; saved?: string; deleted?: string };
 
 export default async function PressAdmin({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const items = getPress();
-  const editing = params.edit ? getRowById<PressItem>("PressItem", Number(params.edit)) : undefined;
+  const items = await getPress();
+  const editing = params.edit ? await prisma.pressItem.findUnique({ where: { id: Number(params.edit) } }) : null;
   const showForm = Boolean(editing || params.new);
 
   return (

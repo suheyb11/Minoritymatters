@@ -5,13 +5,13 @@ import { Reveal } from "@/components/Motion";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   return { title: post ? post.title : "Post not found", description: post?.excerpt };
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   if (!post) notFound();
 
   return (
@@ -24,7 +24,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <Reveal>
             <h1 className="mt-6 font-display text-4xl font-bold leading-tight text-ink sm:text-5xl">{post.title}</h1>
             <p className="mt-5 text-muted">
-              {post.author} · <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+              {post.author} · <time dateTime={post.publishedAt.toISOString()}>{formatDate(post.publishedAt)}</time>
             </p>
           </Reveal>
         </div>

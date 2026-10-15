@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/db";
 
 export type ContactState = { ok: boolean; error: string };
 
@@ -17,11 +17,13 @@ export async function sendMessage(_prev: ContactState, formData: FormData): Prom
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Please enter a valid email address." };
   if (message.length > 5000) return { ok: false, error: "Your message is too long. Please keep it under 5,000 characters." };
 
-  db.prepare("INSERT INTO Message (name, email, phone, message) VALUES (?, ?, ?, ?)").run(
-    name.slice(0, 200),
-    email.slice(0, 200),
-    phone.slice(0, 50),
-    message
-  );
+  await prisma.message.create({
+    data: {
+      name: name.slice(0, 200),
+      email: email.slice(0, 200),
+      phone: phone.slice(0, 50),
+      message,
+    },
+  });
   return { ok: true, error: "" };
 }

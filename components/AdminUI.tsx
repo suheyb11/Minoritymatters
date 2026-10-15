@@ -100,7 +100,7 @@ export function ImageField({ label, name, defaultValue = "" }: { label: string; 
             }}
             className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-pink-soft file:px-4 file:py-2 file:font-semibold file:text-pink"
           />
-          <p className="text-xs text-muted">Upload a new image, or paste an image address. Max 5 MB.</p>
+          <p className="text-xs text-muted">Upload a new image, or paste an image address. Max 4 MB.</p>
         </div>
       </div>
     </div>

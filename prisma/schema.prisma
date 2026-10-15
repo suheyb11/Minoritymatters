@@ -1,0 +1,99 @@
+// The database schema for the website. The database is Supabase (PostgreSQL).
+// DATABASE_URL = Supabase "Transaction pooler" (port 6543), used by the website.
+// DIRECT_URL   = Supabase "Session pooler" or direct connection (port 5432), used by prisma migrate.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Site-wide text and contact details. There is only one row (id = 1).
+model Setting {
+  id            Int    @id @default(1)
+  heroTagline   String @default("")
+  introHeading  String @default("")
+  introSubtitle String @default("")
+  introText     String @default("")
+  address       String @default("")
+  phone         String @default("")
+  email         String @default("")
+  pressEmail    String @default("")
+  charityNumber String @default("")
+  donateUrl     String @default("")
+  tiktokUrl     String @default("")
+  xUrl          String @default("")
+  facebookUrl   String @default("")
+  youtubeUrl    String @default("")
+  aboutLead     String @default("")
+  aboutStory    String @default("")
+  vision        String @default("")
+  mission       String @default("")
+}
+
+// "Our work" programmes
+model Service {
+  id        Int     @id @default(autoincrement())
+  title     String
+  slug      String  @unique
+  summary   String  @default("")
+  intro     String  @default("")
+  points    String  @default("") // one bullet per line
+  outro     String  @default("") // paragraphs separated by a blank line
+  icon      String  @default("/images/icons/promotion.svg")
+  sortOrder Int     @default(0)
+  published Boolean @default(true)
+}
+
+model Value {
+  id        Int    @id @default(autoincrement())
+  title     String
+  text      String @default("")
+  icon      String @default("")
+  sortOrder Int    @default(0)
+}
+
+model PressItem {
+  id        Int    @id @default(autoincrement())
+  title     String
+  source    String @default("")
+  url       String
+  image     String @default("")
+  sortOrder Int    @default(0)
+}
+
+model Post {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  excerpt     String   @default("")
+  body        String   @default("") // paragraphs separated by a blank line
+  coverImage  String   @default("")
+  author      String   @default("Minority Matters")
+  published   Boolean  @default(true)
+  publishedAt DateTime @default(now())
+}
+
+model Funder {
+  id        Int     @id @default(autoincrement())
+  name      String
+  logo      String  @default("")
+  url       String  @default("")
+  showLogo  Boolean @default(false) // show the logo on the home page
+  sortOrder Int     @default(0)
+}
+
+// Contact form messages
+model Message {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String   @default("")
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

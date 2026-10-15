@@ -4,8 +4,8 @@ import ContactForm from "./ContactForm";
 
 export const metadata = { title: "Contact" };
 
-export default function ContactPage() {
-  const settings = getSettings();
+export default async function ContactPage() {
+  const settings = await getSettings();
   const mapQuery = encodeURIComponent(settings.address);
 
   return (

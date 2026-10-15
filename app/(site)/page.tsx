@@ -20,13 +20,13 @@ const pillars = [
   },
 ];
 
-export default function HomePage() {
-  const settings = getSettings();
-  const services = getServices();
-  const values = getValues();
-  const press = getPress().slice(0, 3);
-  const posts = getPosts().slice(0, 2);
-  const logos = getFunders().filter((f) => f.showLogo && f.logo);
+export default async function HomePage() {
+  const settings = await getSettings();
+  const services = await getServices();
+  const values = await getValues();
+  const press = (await getPress()).slice(0, 3);
+  const posts = (await getPosts()).slice(0, 2);
+  const logos = (await getFunders()).filter((f) => f.showLogo && f.logo);
   const yearsActive = new Date().getFullYear() - 2010;
 
   return (

@@ -29,9 +29,9 @@ const milestones = [
   { year: "2021", text: "We call on London's mayoral candidates to end child criminal exploitation." },
 ];
 
-export default function AboutPage() {
-  const settings = getSettings();
-  const values = getValues();
+export default async function AboutPage() {
+  const settings = await getSettings();
+  const values = await getValues();
 
   return (
     <>

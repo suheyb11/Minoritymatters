@@ -3,12 +3,13 @@
 // All admin "save" and "delete" actions live in this file.
 // Every action first checks that the admin is logged in.
 
-import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { db, makeSlug } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { prisma, makeSlug } from "@/lib/db";
+import { uploadImage, contentTypeFor } from "@/lib/storage";
 import { requireAdmin, checkPasswordAndLogIn, logOut } from "@/lib/auth";
 
 // ---------- Small helpers ----------
@@ -22,27 +23,32 @@ function num(formData: FormData, name: string) {
 }
 
 function checkbox(formData: FormData, name: string) {
-  return formData.get(name) === "on" ? 1 : 0;
+  return formData.get(name) === "on";
 }
 
-// If a file was chosen, save it to the /uploads folder and return its web address.
+// If a file was chosen, upload it to Supabase Storage and return its public web address.
 // Otherwise return the address typed in the text box.
 async function imageFrom(formData: FormData, name: string) {
   const file = formData.get(name + "File");
   if (file instanceof File && file.size > 0) {
-    const allowed = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
     const ext = path.extname(file.name).toLowerCase();
-    if (!allowed.includes(ext)) throw new Error("Please upload a PNG, JPG, GIF, WEBP or SVG image.");
-    if (file.size > 5 * 1024 * 1024) throw new Error("Images must be smaller than 5 MB.");
+    if (!contentTypeFor(ext)) throw new Error("Please upload a PNG, JPG, GIF, WEBP or SVG image.");
+    // Vercel refuses requests bigger than 4.5 MB, so images must stay under 4 MB
+    if (file.size > 4 * 1024 * 1024) throw new Error("Images must be smaller than 4 MB.");
 
-    const uploadDir = path.join(process.cwd(), "uploads");
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const fileName = Date.now() + "-" + crypto.randomBytes(4).toString("hex") + ext;
-    fs.writeFileSync(path.join(uploadDir, fileName), Buffer.from(await file.arrayBuffer()));
-    return "/media/" + fileName;
+    return uploadImage(fileName, Buffer.from(await file.arrayBuffer()), ext);
   }
   return text(formData, name);
 }
+
+// True when Prisma says a unique field (like the slug) is already used by another row
+function isDuplicateError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+// Note: the delete actions use deleteMany so that clicking "Delete" twice
+// (when the row is already gone) does not show an error.
 
 // Refresh every page so visitors see the change
 function refreshSite() {
@@ -66,14 +72,29 @@ export async function logoutAction() {
 
 export async function saveSettings(formData: FormData) {
   await requireAdmin();
-  const fields = [
-    "heroTagline", "introHeading", "introSubtitle", "introText",
-    "address", "phone", "email", "pressEmail", "charityNumber", "donateUrl",
-    "tiktokUrl", "xUrl", "facebookUrl", "youtubeUrl",
-    "aboutLead", "aboutStory", "vision", "mission",
-  ];
-  const sql = `UPDATE Setting SET ${fields.map((f) => `${f} = ?`).join(", ")} WHERE id = 1`;
-  db.prepare(sql).run(...fields.map((f) => text(formData, f)));
+  await prisma.setting.update({
+    where: { id: 1 },
+    data: {
+      heroTagline: text(formData, "heroTagline"),
+      introHeading: text(formData, "introHeading"),
+      introSubtitle: text(formData, "introSubtitle"),
+      introText: text(formData, "introText"),
+      address: text(formData, "address"),
+      phone: text(formData, "phone"),
+      email: text(formData, "email"),
+      pressEmail: text(formData, "pressEmail"),
+      charityNumber: text(formData, "charityNumber"),
+      donateUrl: text(formData, "donateUrl"),
+      tiktokUrl: text(formData, "tiktokUrl"),
+      xUrl: text(formData, "xUrl"),
+      facebookUrl: text(formData, "facebookUrl"),
+      youtubeUrl: text(formData, "youtubeUrl"),
+      aboutLead: text(formData, "aboutLead"),
+      aboutStory: text(formData, "aboutStory"),
+      vision: text(formData, "vision"),
+      mission: text(formData, "mission"),
+    },
+  });
   refreshSite();
   redirect("/admin/settings?saved=1");
 }
@@ -84,23 +105,26 @@ export async function saveService(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
   const title = text(formData, "title");
-  const slug = makeSlug(text(formData, "slug") || title);
-  const data = [
-    title, slug, text(formData, "summary"), text(formData, "intro"), text(formData, "points"),
-    text(formData, "outro"), await imageFrom(formData, "icon"), num(formData, "sortOrder"), checkbox(formData, "published"),
-  ];
+  const data = {
+    title,
+    slug: makeSlug(text(formData, "slug") || title),
+    summary: text(formData, "summary"),
+    intro: text(formData, "intro"),
+    points: text(formData, "points"),
+    outro: text(formData, "outro"),
+    icon: await imageFrom(formData, "icon"),
+    sortOrder: num(formData, "sortOrder"),
+    published: checkbox(formData, "published"),
+  };
 
   try {
     if (id) {
-      db.prepare(
-        "UPDATE Service SET title=?, slug=?, summary=?, intro=?, points=?, outro=?, icon=?, sortOrder=?, published=? WHERE id=?"
-      ).run(...data, id);
+      await prisma.service.update({ where: { id }, data });
     } else {
-      db.prepare(
-        "INSERT INTO Service (title, slug, summary, intro, points, outro, icon, sortOrder, published) VALUES (?,?,?,?,?,?,?,?,?)"
-      ).run(...data);
+      await prisma.service.create({ data });
     }
-  } catch {
+  } catch (error) {
+    if (!isDuplicateError(error)) throw error;
     redirect(`/admin/services?${id ? "edit=" + id : "new=1"}&error=slug`);
   }
   refreshSite();
@@ -109,7 +133,7 @@ export async function saveService(formData: FormData) {
 
 export async function deleteService(formData: FormData) {
   await requireAdmin();
-  db.prepare("DELETE FROM Service WHERE id = ?").run(num(formData, "id"));
+  await prisma.service.deleteMany({ where: { id: num(formData, "id") } });
   refreshSite();
   redirect("/admin/services?deleted=1");
 }
@@ -119,11 +143,16 @@ export async function deleteService(formData: FormData) {
 export async function saveValue(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
-  const data = [text(formData, "title"), text(formData, "text"), await imageFrom(formData, "icon"), num(formData, "sortOrder")];
+  const data = {
+    title: text(formData, "title"),
+    text: text(formData, "text"),
+    icon: await imageFrom(formData, "icon"),
+    sortOrder: num(formData, "sortOrder"),
+  };
   if (id) {
-    db.prepare("UPDATE Value SET title=?, text=?, icon=?, sortOrder=? WHERE id=?").run(...data, id);
+    await prisma.value.update({ where: { id }, data });
   } else {
-    db.prepare("INSERT INTO Value (title, text, icon, sortOrder) VALUES (?,?,?,?)").run(...data);
+    await prisma.value.create({ data });
   }
   refreshSite();
   redirect("/admin/values?saved=1");
@@ -131,7 +160,7 @@ export async function saveValue(formData: FormData) {
 
 export async function deleteValue(formData: FormData) {
   await requireAdmin();
-  db.prepare("DELETE FROM Value WHERE id = ?").run(num(formData, "id"));
+  await prisma.value.deleteMany({ where: { id: num(formData, "id") } });
   refreshSite();
   redirect("/admin/values?deleted=1");
 }
@@ -141,14 +170,17 @@ export async function deleteValue(formData: FormData) {
 export async function savePress(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
-  const data = [
-    text(formData, "title"), text(formData, "source"), text(formData, "url"),
-    await imageFrom(formData, "image"), num(formData, "sortOrder"),
-  ];
+  const data = {
+    title: text(formData, "title"),
+    source: text(formData, "source"),
+    url: text(formData, "url"),
+    image: await imageFrom(formData, "image"),
+    sortOrder: num(formData, "sortOrder"),
+  };
   if (id) {
-    db.prepare("UPDATE PressItem SET title=?, source=?, url=?, image=?, sortOrder=? WHERE id=?").run(...data, id);
+    await prisma.pressItem.update({ where: { id }, data });
   } else {
-    db.prepare("INSERT INTO PressItem (title, source, url, image, sortOrder) VALUES (?,?,?,?,?)").run(...data);
+    await prisma.pressItem.create({ data });
   }
   refreshSite();
   redirect("/admin/press?saved=1");
@@ -156,7 +188,7 @@ export async function savePress(formData: FormData) {
 
 export async function deletePress(formData: FormData) {
   await requireAdmin();
-  db.prepare("DELETE FROM PressItem WHERE id = ?").run(num(formData, "id"));
+  await prisma.pressItem.deleteMany({ where: { id: num(formData, "id") } });
   refreshSite();
   redirect("/admin/press?deleted=1");
 }
@@ -167,24 +199,26 @@ export async function savePost(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
   const title = text(formData, "title");
-  const slug = makeSlug(text(formData, "slug") || title);
   const date = text(formData, "publishedAt") || new Date().toISOString().slice(0, 10);
-  const data = [
-    title, slug, text(formData, "excerpt"), text(formData, "body"), await imageFrom(formData, "coverImage"),
-    text(formData, "author") || "Minority Matters", checkbox(formData, "published"), new Date(date).toISOString(),
-  ];
+  const data = {
+    title,
+    slug: makeSlug(text(formData, "slug") || title),
+    excerpt: text(formData, "excerpt"),
+    body: text(formData, "body"),
+    coverImage: await imageFrom(formData, "coverImage"),
+    author: text(formData, "author") || "Minority Matters",
+    published: checkbox(formData, "published"),
+    publishedAt: new Date(date),
+  };
 
   try {
     if (id) {
-      db.prepare(
-        "UPDATE Post SET title=?, slug=?, excerpt=?, body=?, coverImage=?, author=?, published=?, publishedAt=? WHERE id=?"
-      ).run(...data, id);
+      await prisma.post.update({ where: { id }, data });
     } else {
-      db.prepare(
-        "INSERT INTO Post (title, slug, excerpt, body, coverImage, author, published, publishedAt) VALUES (?,?,?,?,?,?,?,?)"
-      ).run(...data);
+      await prisma.post.create({ data });
     }
-  } catch {
+  } catch (error) {
+    if (!isDuplicateError(error)) throw error;
     redirect(`/admin/blog?${id ? "edit=" + id : "new=1"}&error=slug`);
   }
   refreshSite();
@@ -193,7 +227,7 @@ export async function savePost(formData: FormData) {
 
 export async function deletePost(formData: FormData) {
   await requireAdmin();
-  db.prepare("DELETE FROM Post WHERE id = ?").run(num(formData, "id"));
+  await prisma.post.deleteMany({ where: { id: num(formData, "id") } });
   refreshSite();
   redirect("/admin/blog?deleted=1");
 }
@@ -203,14 +237,17 @@ export async function deletePost(formData: FormData) {
 export async function saveFunder(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
-  const data = [
-    text(formData, "name"), await imageFrom(formData, "logo"), text(formData, "url"),
-    checkbox(formData, "showLogo"), num(formData, "sortOrder"),
-  ];
+  const data = {
+    name: text(formData, "name"),
+    logo: await imageFrom(formData, "logo"),
+    url: text(formData, "url"),
+    showLogo: checkbox(formData, "showLogo"),
+    sortOrder: num(formData, "sortOrder"),
+  };
   if (id) {
-    db.prepare("UPDATE Funder SET name=?, logo=?, url=?, showLogo=?, sortOrder=? WHERE id=?").run(...data, id);
+    await prisma.funder.update({ where: { id }, data });
   } else {
-    db.prepare("INSERT INTO Funder (name, logo, url, showLogo, sortOrder) VALUES (?,?,?,?,?)").run(...data);
+    await prisma.funder.create({ data });
   }
   refreshSite();
   redirect("/admin/funders?saved=1");
@@ -218,7 +255,7 @@ export async function saveFunder(formData: FormData) {
 
 export async function deleteFunder(formData: FormData) {
   await requireAdmin();
-  db.prepare("DELETE FROM Funder WHERE id = ?").run(num(formData, "id"));
+  await prisma.funder.deleteMany({ where: { id: num(formData, "id") } });
   refreshSite();
   redirect("/admin/funders?deleted=1");
 }
@@ -227,12 +264,16 @@ export async function deleteFunder(formData: FormData) {
 
 export async function toggleMessageRead(formData: FormData) {
   await requireAdmin();
-  db.prepare("UPDATE Message SET isRead = 1 - isRead WHERE id = ?").run(num(formData, "id"));
+  const id = num(formData, "id");
+  const message = await prisma.message.findUnique({ where: { id } });
+  if (message) {
+    await prisma.message.update({ where: { id }, data: { isRead: !message.isRead } });
+  }
   redirect("/admin/messages");
 }
 
 export async function deleteMessage(formData: FormData) {
   await requireAdmin();
-  db.prepare("DELETE FROM Message WHERE id = ?").run(num(formData, "id"));
+  await prisma.message.deleteMany({ where: { id: num(formData, "id") } });
   redirect("/admin/messages?deleted=1");
 }
