@@ -13,7 +13,7 @@ export default async function SettingsAdmin({ searchParams }: { searchParams: Pr
       <form action={saveSettings} className="space-y-8">
         <fieldset className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
           <legend className="font-display text-xl font-bold">Home page</legend>
-          <TextArea label="Hero text (under the big title)" name="heroTagline" defaultValue={s.heroTagline} rows={2} hint="Not shown on the website at the moment — the pink tagline (Brochure text) is shown instead." />
+          <TextArea label="Hero text (under the big title)" name="heroTagline" defaultValue={s.heroTagline} rows={2} hint="Not shown on the website at the moment — the Tagline (Brochure text) is shown instead." />
           <Field label="Welcome heading" name="introHeading" defaultValue={s.introHeading} />
           <Field label="Welcome subtitle" name="introSubtitle" defaultValue={s.introSubtitle} />
           <TextArea label="Welcome text" name="introText" defaultValue={s.introText} rows={5} />
@@ -35,7 +35,7 @@ export default async function SettingsAdmin({ searchParams }: { searchParams: Pr
             rows={3}
             hint="Shown in the pink band on the Our work page and above the contact form."
           />
-          <Field label="Tagline" name="tagline" defaultValue={s.tagline} hint="Shown in pink under the big title on the home page." />
+          <Field label="Tagline" name="tagline" defaultValue={s.tagline} hint="Shown under the big title on the home page." />
           <Field
             label="Community line"
             name="communityLine"

@@ -47,7 +47,7 @@ export default async function HomePage() {
             </Reveal>
             <Reveal delay={0.3}>
               {settings.tagline && (
-                <p className="mt-8 max-w-lg font-display text-2xl font-semibold leading-snug text-pink sm:text-[1.75rem]">
+                <p className="mt-8 max-w-lg text-lg leading-relaxed text-muted">
                   {settings.tagline}
                 </p>
               )}
