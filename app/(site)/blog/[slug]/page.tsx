@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPostBySlug, toParagraphs, formatDate } from "@/lib/db";
+import { getPosts, getPostBySlug, toParagraphs, formatDate } from "@/lib/db";
 import { Reveal } from "@/components/Motion";
+
+// Build every published post in advance so it opens instantly. New posts are built on their first visit.
+export async function generateStaticParams() {
+  const posts = await getPosts();
+  return posts.map((post) => ({ slug: post.slug }));
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

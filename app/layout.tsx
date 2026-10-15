@@ -3,8 +3,10 @@ import "@fontsource-variable/bricolage-grotesque";
 import "@fontsource-variable/figtree";
 import "./globals.css";
 
-// Always read fresh data from the database, so admin changes show straight away
-export const dynamic = "force-dynamic";
+// Public pages are cached, so they open instantly. Every save in the admin refreshes the
+// cache straight away (revalidatePath in app/admin/actions.ts); as a backup, pages also refresh
+// once an hour (for example after changing data in Prisma Studio). Admin pages are never cached.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: {
