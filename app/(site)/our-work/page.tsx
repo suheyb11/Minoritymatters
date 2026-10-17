@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getServices, getSettings, toLines, toParagraphs } from "@/lib/db";
+import { getServices, getSettings, getProjects, toLines, toParagraphs } from "@/lib/db";
 import PageHeader from "@/components/PageHeader";
 import { ServiceAreas, ServiceList, FullBleedBand, Reveal } from "@/components/Motion";
 
@@ -9,11 +9,23 @@ export const metadata = { title: "Our work" };
 export default async function OurWorkPage() {
   const settings = await getSettings();
   const services = await getServices();
+  const projects = await getProjects(); // for the "Recent projects" links under each area
 
   // The 5 main service areas (from the brochure)
   const areas = services
     .filter((s) => s.kind === "area")
-    .map((s) => ({ id: s.id, slug: s.slug, title: s.title, summary: s.summary, icon: s.icon, points: toLines(s.points) }));
+    .map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      title: s.title,
+      summary: s.summary,
+      icon: s.icon,
+      points: toLines(s.points),
+      projects: projects
+        .filter((p) => p.relatedService === s.slug)
+        .slice(0, 4)
+        .map((p) => ({ slug: p.slug, title: p.title })),
+    }));
 
   // The named programmes (the list that opens and closes)
   const programmes = services

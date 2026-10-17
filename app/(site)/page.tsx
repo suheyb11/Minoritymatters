@@ -1,5 +1,20 @@
 import Link from "next/link";
-import { getSettings, getServices, getValues, getPress, getPosts, getFunders, formatDate, toParagraphs } from "@/lib/db";
+import Image from "next/image";
+import {
+  getSettings,
+  getServices,
+  getValues,
+  getPress,
+  getPosts,
+  getFunders,
+  getProjects,
+  getProjectPeriods,
+  getFeaturedProject,
+  toProjectCard,
+  toStats,
+  formatDate,
+  toParagraphs,
+} from "@/lib/db";
 import { HeroRing, Reveal, CountUp, PlayIcon, PlayRing, GlowPhoto } from "@/components/Motion";
 
 const pillars = [
@@ -28,7 +43,26 @@ export default async function HomePage() {
   const press = (await getPress()).slice(0, 3);
   const posts = (await getPosts()).slice(0, 2);
   const logos = (await getFunders()).filter((f) => f.showLogo && f.logo);
-  const yearsActive = new Date().getFullYear() - 2010;
+
+  // ---------- The stats band: 2 fixed numbers + 2 from the newest period's projects ----------
+  const latestPeriod = (await getProjectPeriods())[0] ?? "";
+  const thisYear = latestPeriod ? await getProjects(latestPeriod) : [];
+  const stats = [
+    { value: new Date().getFullYear() - 2010, suffix: "+", label: "years serving our community", focus: false },
+    {
+      value: thisYear.reduce((sum, p) => sum + p.peopleReached, 0),
+      suffix: "",
+      label: `people took part in ${latestPeriod}`,
+      focus: true, // shown in pink
+    },
+    { value: thisYear.length, suffix: "", label: "projects delivered this year", focus: false },
+    { value: 150, suffix: "+", label: "teachers trained in safeguarding", focus: false },
+  ].filter((s) => s.value > 0);
+
+  // ---------- The featured story (chosen in Admin → Projects) ----------
+  const story = await getFeaturedProject();
+  const storyText = story ? [story.summary, toParagraphs(story.body)[0]].filter(Boolean).join(" ") : "";
+  const storyStats = story ? toStats(story.stats).slice(0, 3) : [];
 
   return (
     <>
@@ -105,6 +139,30 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ---------- Stats band ---------- */}
+      <section className="border-b border-mist" aria-labelledby="stats-title">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+          <h2 id="stats-title" className="font-display text-xl font-semibold text-ink">
+            Since 2010 in Islington, Camden and Hackney
+          </h2>
+          <dl className="mt-8 grid grid-cols-2 gap-y-10 lg:grid-cols-4 lg:divide-x lg:divide-[#e5e3e8]">
+            {stats.map((s) => (
+              <div key={s.label} className="flex flex-col-reverse justify-end gap-2 pr-4 lg:px-8 lg:first:pl-0">
+                <dt className="text-muted">{s.label}</dt>
+                <dd
+                  className={`font-display text-5xl font-bold leading-none sm:text-6xl lg:text-7xl ${s.focus ? "text-pink" : "text-ink"}`}
+                >
+                  <CountUp to={s.value} suffix={s.suffix} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <Link href="/impact" className="mt-10 inline-block font-semibold text-pink underline-offset-4 hover:underline">
+            See what we delivered this year
+          </Link>
+        </div>
+      </section>
+
       {/* ---------- Who we are: text on white + a big feathered photo that links to the founder video ---------- */}
       {whoWeAre.length > 0 && (
         <section className="overflow-x-clip bg-white py-20 lg:py-28" aria-labelledby="who-title">
@@ -167,33 +225,57 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ---------- Facts ---------- */}
-      <section className="border-b border-mist">
-        <dl className="mx-auto grid max-w-7xl grid-cols-2 gap-y-10 px-4 py-16 sm:px-6 lg:grid-cols-4">
-          <div className="flex flex-col-reverse gap-1 pr-4">
-            <dt className="text-muted">Years serving the community</dt>
-            <dd className="font-display text-5xl font-bold text-ink">
-              <CountUp to={yearsActive} suffix="+" />
-            </dd>
+      {/* ---------- Featured story (Admin → Projects → "Feature on the home page") ---------- */}
+      {story && (
+        <section className="bg-white pb-20 lg:pb-28" aria-labelledby="story-title">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
+            <Reveal>
+              <div className="photo-frame aspect-[4/3] bg-mist">
+                {story.coverImage && (
+                  <Image
+                    src={story.coverImage}
+                    alt={toProjectCard(story).coverAlt}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    unoptimized={!story.coverImage.startsWith("/")}
+                    className="object-cover"
+                  />
+                )}
+              </div>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <p className="text-sm font-semibold text-pink">Featured story</p>
+              <h2 id="story-title" className="mt-2 font-display text-4xl font-bold leading-tight text-ink sm:text-5xl">
+                {story.featuredHeadline || story.title}
+              </h2>
+              <p className="mt-5 line-clamp-4 text-lg leading-relaxed text-muted">{storyText}</p>
+              {storyStats.length > 0 && (
+                <ul className="mt-6 flex flex-wrap gap-2">
+                  {storyStats.map((s, i) => (
+                    <li key={i} className="flex items-baseline gap-1.5 rounded-full bg-pink-soft px-4 py-2">
+                      <span className="font-display text-xl font-bold text-pink">{s.number}</span>
+                      <span className="text-sm text-ink">{s.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+                <Link
+                  href={`/impact/${story.slug}`}
+                  className="rounded-full bg-ink px-6 py-3.5 font-semibold text-white transition-colors hover:bg-pink"
+                >
+                  Read the story
+                </Link>
+                {thisYear.length > 0 && (
+                  <Link href="/impact" className="font-semibold text-pink underline-offset-4 hover:underline">
+                    See all {thisYear.length} projects
+                  </Link>
+                )}
+              </div>
+            </Reveal>
           </div>
-          <div className="flex flex-col-reverse gap-1 pr-4">
-            <dt className="text-muted">Teachers trained in safeguarding</dt>
-            <dd className="font-display text-5xl font-bold text-ink">
-              <CountUp to={150} suffix="+" />
-            </dd>
-          </div>
-          <div className="flex flex-col-reverse gap-1 pr-4">
-            <dt className="text-muted">Key stages we tutor</dt>
-            <dd className="font-display text-5xl font-bold text-ink">KS1–4</dd>
-          </div>
-          <div className="flex flex-col-reverse gap-1 pr-4">
-            <dt className="text-muted">London boroughs we work in</dt>
-            <dd className="font-display text-5xl font-bold text-ink">
-              <CountUp to={3} />
-            </dd>
-          </div>
-        </dl>
-      </section>
+        </section>
+      )}
 
       {/* ---------- Our work preview ---------- */}
       <section>
@@ -271,13 +353,13 @@ export default async function HomePage() {
               {press.map((item) => (
                 <li key={item.id}>
                   <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block">
-                    <div className="aspect-[4/3] overflow-hidden">
+                    <div className="photo-frame aspect-[4/3]">
                       {item.image && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.image}
                           alt=""
-                          className="feather-soft h-full w-full object-cover grayscale transition duration-500 group-hover:scale-105 group-hover:grayscale-0"
+                          className="h-full w-full object-cover grayscale transition duration-500 group-hover:grayscale-0 motion-safe:group-hover:scale-[1.04]"
                         />
                       )}
                     </div>

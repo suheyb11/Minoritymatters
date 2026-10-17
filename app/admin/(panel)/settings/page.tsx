@@ -94,6 +94,8 @@ export default async function SettingsAdmin({ searchParams }: { searchParams: Pr
           <Field label="X (Twitter)" name="xUrl" defaultValue={s.xUrl} />
           <Field label="Facebook" name="facebookUrl" defaultValue={s.facebookUrl} />
           <Field label="YouTube" name="youtubeUrl" defaultValue={s.youtubeUrl} />
+          <Field label="Instagram" name="instagramUrl" defaultValue={s.instagramUrl} />
+          <Field label="LinkedIn" name="linkedinUrl" defaultValue={s.linkedinUrl} />
         </fieldset>
 
         <div className="sticky bottom-4">

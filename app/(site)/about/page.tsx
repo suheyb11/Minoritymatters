@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSettings, getValues, toParagraphs } from "@/lib/db";
 import PageHeader from "@/components/PageHeader";
 import { Reveal, FounderTeaser, GlowPhoto } from "@/components/Motion";
@@ -109,9 +110,9 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      {/* Icon row, like the original site */}
+      {/* Icon row, like the original site, with a link to the Values page */}
       <section className="border-t border-mist">
-        <ul className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-8 px-4 py-14 sm:px-6">
+        <ul className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-8 px-4 pb-8 pt-14 sm:px-6">
           {values.map((v, i) => (
             <li key={v.id}>
               <Reveal delay={i * 0.05}>
@@ -121,6 +122,11 @@ export default async function AboutPage() {
             </li>
           ))}
         </ul>
+        <p className="pb-14 text-center">
+          <Link href="/values" className="font-semibold text-pink underline-offset-4 hover:underline">
+            Read about our values
+          </Link>
+        </p>
       </section>
     </>
   );

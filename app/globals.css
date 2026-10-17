@@ -131,6 +131,23 @@ h4 {
   }
 }
 
+/* ---------- Framed photos (press and impact project images) ----------
+   A plain frame: rounded corners and a thin light-grey border (same as Tailwind's
+   "rounded-2xl overflow-hidden border border-[#e5e3e8]"). The photo inside can zoom on hover
+   and stays inside the frame. When the card link around it (".group") is hovered,
+   the border turns a slightly darker grey. */
+.photo-frame {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate; /* keeps the rounded corners while the photo zooms (Safari) */
+  border: 1px solid #e5e3e8;
+  border-radius: 1rem;
+  transition: border-color 0.3s;
+}
+.group:hover .photo-frame {
+  border-color: #cfcbd4;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

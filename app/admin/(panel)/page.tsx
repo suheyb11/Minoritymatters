@@ -6,6 +6,7 @@ export default async function AdminDashboard() {
   const cards = [
     { label: "Messages", value: await prisma.message.count(), href: "/admin/messages" },
     { label: "Programmes", value: await prisma.service.count(), href: "/admin/services" },
+    { label: "Projects", value: await prisma.project.count(), href: "/admin/projects" },
     { label: "Blog posts", value: await prisma.post.count(), href: "/admin/blog" },
     { label: "Press items", value: await prisma.pressItem.count(), href: "/admin/press" },
     { label: "Values", value: await prisma.value.count(), href: "/admin/values" },

@@ -1,8 +1,8 @@
 // All database code for the website lives in this one file.
-// We use Prisma (see prisma/schema.prisma). Right now the database is SQLite (prisma/dev.db).
+// We use Prisma (see prisma/schema.prisma). The database is Supabase (PostgreSQL).
 // To fill an empty database with the starting content, run: npm run db:seed
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Project } from "@prisma/client";
 
 
 // ---------- Open the database (only once) ----------
@@ -52,6 +52,96 @@ export async function getFunders() {
 
 export async function getMessages() {
   return prisma.message.findMany({ orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+}
+
+// ---------- Projects (the "Impact" pages) ----------
+
+// The fixed list of project categories (the admin chooses one)
+export const PROJECT_CATEGORIES = [
+  "Education",
+  "Youth activities",
+  "Women & families",
+  "Employability",
+  "Welfare & advocacy",
+  "Community events",
+];
+
+// Published projects, optionally only one period (for example "2025–26")
+export async function getProjects(period?: string, includeHidden = false) {
+  return prisma.project.findMany({
+    where: { ...(period ? { period } : {}), ...(includeHidden ? {} : { published: true }) },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+}
+
+export async function getProjectBySlug(slug: string) {
+  return prisma.project.findFirst({ where: { slug, published: true } });
+}
+
+// The home page "Featured story": the featured project, or else the newest published one
+export async function getFeaturedProject() {
+  const featured = await prisma.project.findFirst({ where: { isFeatured: true, published: true } });
+  return featured ?? prisma.project.findFirst({ where: { published: true }, orderBy: { id: "desc" } });
+}
+
+// The different periods, newest first ("2025–26" before "2024–25")
+export async function getProjectPeriods() {
+  const rows = await prisma.project.findMany({
+    where: { published: true },
+    select: { period: true },
+    distinct: ["period"],
+  });
+  return rows
+    .map((r) => r.period)
+    .filter((p) => p)
+    .sort()
+    .reverse();
+}
+
+// "93|boys aged 11–16" (one per line) -> [{ number: "93", label: "boys aged 11–16" }]
+export function toStats(text: string) {
+  return toLines(text).map((line) => {
+    const [number, ...label] = line.split("|");
+    return { number: number.trim(), label: label.join("|").trim() };
+  });
+}
+
+// The small set of facts a project card needs (cards are drawn in components/Motion.tsx)
+export type ProjectCardData = {
+  slug: string;
+  title: string;
+  category: string;
+  summary: string;
+  period: string;
+  peopleReached: number;
+  coverImage: string;
+  coverAlt: string;
+  stat: { number: string; label: string } | null; // the first number, shown big on the card
+};
+
+export function toProjectCard(project: Project): ProjectCardData {
+  // The cover's description comes from its line in the gallery, if it is there
+  const cover = toGallery(project.gallery, project.title).find((g) => g.src === project.coverImage);
+  return {
+    slug: project.slug,
+    title: project.title,
+    category: project.category,
+    summary: project.summary,
+    period: project.period,
+    peopleReached: project.peopleReached,
+    coverImage: project.coverImage,
+    coverAlt: cover?.alt ?? project.title,
+    stat: toStats(project.stats)[0] ?? null,
+  };
+}
+
+// Gallery lines: "path" or "path | description" -> [{ src, alt }]
+export function toGallery(text: string, title: string) {
+  const lines = toLines(text);
+  return lines.map((line, i) => {
+    const [src, ...alt] = line.split("|");
+    return { src: src.trim(), alt: alt.join("|").trim() || `${title}, photo ${i + 1} of ${lines.length}` };
+  });
 }
 
 // ---------- Small text helpers ----------

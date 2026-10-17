@@ -90,6 +90,8 @@ export async function saveSettings(formData: FormData) {
       xUrl: text(formData, "xUrl"),
       facebookUrl: text(formData, "facebookUrl"),
       youtubeUrl: text(formData, "youtubeUrl"),
+      instagramUrl: text(formData, "instagramUrl"),
+      linkedinUrl: text(formData, "linkedinUrl"),
       aboutLead: text(formData, "aboutLead"),
       aboutStory: text(formData, "aboutStory"),
       vision: text(formData, "vision"),
@@ -148,6 +150,66 @@ export async function deleteService(formData: FormData) {
   await prisma.service.deleteMany({ where: { id: num(formData, "id") } });
   refreshSite();
   redirect("/admin/services?deleted=1");
+}
+
+// ---------- Projects (Impact) ----------
+
+export async function saveProject(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const title = text(formData, "title");
+
+  // Photos chosen in "Add photos to the gallery" are uploaded and added to the end of the gallery list
+  const gallery = text(formData, "gallery").split("\n").filter((line) => line.trim());
+  for (const file of formData.getAll("galleryFiles")) {
+    if (!(file instanceof File) || file.size === 0) continue;
+    const ext = path.extname(file.name).toLowerCase();
+    if (!contentTypeFor(ext)) throw new Error("Please upload PNG, JPG, GIF, WEBP or SVG images.");
+    if (file.size > 4 * 1024 * 1024) throw new Error("Images must be smaller than 4 MB.");
+    const fileName = Date.now() + "-" + crypto.randomBytes(4).toString("hex") + ext;
+    gallery.push(await uploadImage(fileName, Buffer.from(await file.arrayBuffer()), ext));
+  }
+
+  const data = {
+    title,
+    slug: makeSlug(text(formData, "slug") || title),
+    period: text(formData, "period"),
+    category: text(formData, "category"),
+    summary: text(formData, "summary"),
+    body: text(formData, "body"),
+    stats: text(formData, "stats"),
+    peopleReached: num(formData, "peopleReached"),
+    coverImage: await imageFrom(formData, "coverImage"),
+    gallery: gallery.join("\n"),
+    relatedService: text(formData, "relatedService"),
+    sortOrder: num(formData, "sortOrder"),
+    published: checkbox(formData, "published"),
+    isFeatured: checkbox(formData, "isFeatured"),
+    featuredHeadline: text(formData, "featuredHeadline"),
+  };
+
+  try {
+    // Only one project can be on the home page: saving a featured project un-features all the others.
+    // Both steps run together (a transaction), so they always happen at the same time.
+    await prisma.$transaction(async (tx) => {
+      const saved = id ? await tx.project.update({ where: { id }, data }) : await tx.project.create({ data });
+      if (saved.isFeatured) {
+        await tx.project.updateMany({ where: { id: { not: saved.id }, isFeatured: true }, data: { isFeatured: false } });
+      }
+    });
+  } catch (error) {
+    if (!isDuplicateError(error)) throw error;
+    redirect(`/admin/projects?${id ? "edit=" + id : "new=1"}&error=slug`);
+  }
+  refreshSite();
+  redirect("/admin/projects?saved=1");
+}
+
+export async function deleteProject(formData: FormData) {
+  await requireAdmin();
+  await prisma.project.deleteMany({ where: { id: num(formData, "id") } });
+  refreshSite();
+  redirect("/admin/projects?deleted=1");
 }
 
 // ---------- Values ----------

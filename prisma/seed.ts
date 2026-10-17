@@ -37,6 +37,8 @@ async function main() {
       xUrl: "https://x.com/mm_charity",
       facebookUrl: "https://www.facebook.com/MinorityMattersUK/",
       youtubeUrl: "https://www.youtube.com/channel/UC9cpWYZ21KwLKFR8tyaRwNQ",
+      instagramUrl: "https://www.instagram.com/minoritymattersuk",
+      linkedinUrl: "https://www.linkedin.com/company/MinorityMattersUK",
       aboutLead:
         "*Minority Matters* is a charity that started in 2010 to provide children and young people *educational support*. Our purpose was to ensure that children from disadvantaged backgrounds were *succeeding* academically, so that they could *break the cycle of poverty*.",
       aboutStory:
@@ -240,6 +242,7 @@ async function main() {
   }
 
   console.log("Database filled with the starting content.");
+  console.log("To add the 2025–26 projects (Impact pages), run: npx tsx scripts/seed-projects-2025-26.ts");
 }
 
 main()

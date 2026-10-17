@@ -3,10 +3,20 @@
 // Animated pieces used on the public pages (Framer Motion).
 // All animations respect the visitor's "reduce motion" setting.
 
-import { motion, AnimatePresence, useReducedMotion, useInView, animate, useScroll, useTransform } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  MotionConfig,
+  useReducedMotion,
+  useInView,
+  animate,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import type { ProjectCardData } from "@/lib/db"; // only the type: the database code is not sent to the browser
 
 // ---------- Reveal: fades content up when the page opens, or when it scrolls into view ----------
 // Content on screen when the page opens fades up with a CSS animation (.reveal-rise in globals.css),
@@ -173,11 +183,29 @@ export function HeroRing({ words }: { words: string[] }) {
 }
 
 // ---------- CountUp: a number that counts up when it becomes visible ----------
+// The real number is in the HTML from the server (so it shows without JavaScript).
+// After the page loads, a number that is still below the screen is set to 0 and counts up when you reach it.
 export function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const reduce = useReducedMotion();
-  const [value, setValue] = useState(reduce ? to : 0);
+  const [value, setValue] = useState(to);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (reduce || !el || el.getBoundingClientRect().top <= window.innerHeight) return;
+    setValue(0);
+    // Safety net: when someone scrolls past very fast, the browser may never report the number as
+    // "in view". If it is already above the screen, just show the real number.
+    function onScroll() {
+      if (el && el.getBoundingClientRect().bottom < 0) {
+        setValue(to);
+        window.removeEventListener("scroll", onScroll);
+      }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [reduce, to]);
 
   useEffect(() => {
     if (!inView || reduce) return;
@@ -321,6 +349,7 @@ type AreaItem = {
   summary: string;
   icon: string;
   points: string[];
+  projects: { slug: string; title: string }[]; // "Recent projects" linked to this area
 };
 
 export function ServiceAreas({ areas }: { areas: AreaItem[] }) {
@@ -418,6 +447,24 @@ function AreaBlock({ area, number }: { area: AreaItem; number: number }) {
           </motion.li>
         ))}
       </ul>
+
+      {area.projects.length > 0 && (
+        <div className="mt-8 border-t border-grey/40 pt-6">
+          <h4 className="font-sans text-sm font-semibold text-ink">Recent projects</h4>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {area.projects.map((p) => (
+              <li key={p.slug}>
+                <Link
+                  href={`/impact/${p.slug}`}
+                  className="inline-block rounded-full bg-white px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-pink hover:text-white"
+                >
+                  {p.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   );
 }
@@ -554,12 +601,14 @@ export function GlowPhoto({
   sizes = "100vw",
   className = "",
   imgClassName = "",
+  priority = false,
 }: {
   src: string;
   alt: string;
   sizes?: string;
   className?: string;
   imgClassName?: string;
+  priority?: boolean;
 }) {
   const own = isOwnImage(src);
   return (
@@ -567,7 +616,15 @@ export function GlowPhoto({
       <div className="photo-glow-layer" aria-hidden="true">
         <Image src={src} alt="" fill sizes="320px" quality={30} unoptimized={!own} className="object-cover" />
       </div>
-      <Image src={src} alt={alt} fill sizes={sizes} unoptimized={!own} className={`feather object-cover ${imgClassName}`} />
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        priority={priority}
+        unoptimized={!own}
+        className={`feather object-cover ${imgClassName}`}
+      />
     </div>
   );
 }
@@ -797,5 +854,358 @@ export function ShareButton() {
       </svg>
       <span aria-live="polite">{copied ? "Link copied" : "Share this video"}</span>
     </button>
+  );
+}
+
+// ---------- ProjectCard: one project on the Impact page and the home page ----------
+// The whole card is one link. The photo sits in a grey frame (.photo-frame) and zooms a little on hover.
+export function ProjectCard({ project }: { project: ProjectCardData }) {
+  return (
+    <Link href={`/impact/${project.slug}`} className="group block h-full">
+      <div className="photo-frame aspect-[4/3] bg-mist">
+        {project.coverImage && (
+          <Image
+            src={project.coverImage}
+            alt={project.coverAlt}
+            fill
+            sizes="(min-width: 1024px) 30vw, (min-width: 768px) 45vw, 100vw"
+            unoptimized={!isOwnImage(project.coverImage)}
+            className="object-cover transition-transform duration-700 motion-safe:group-hover:scale-[1.04]"
+          />
+        )}
+      </div>
+      <p className="mt-4 text-sm font-semibold text-pink">{project.category}</p>
+      <h3 className="mt-1 font-display text-2xl font-semibold leading-tight text-ink group-hover:text-pink">{project.title}</h3>
+      <p className="mt-2 leading-relaxed text-muted">{project.summary}</p>
+      {project.stat && (
+        <p className="mt-4 flex items-baseline gap-2">
+          <span className="font-display text-4xl font-bold text-pink">{project.stat.number}</span>
+          <span className="text-sm text-muted">{project.stat.label}</span>
+        </p>
+      )}
+    </Link>
+  );
+}
+
+// ---------- ImpactExplorer: the /impact page (year switcher, big total, category filter, project grid) ----------
+type Highlight = { number: string; label: string; slug: string; title: string };
+type PeriodData = { period: string; projects: ProjectCardData[]; highlights: Highlight[] };
+
+export function ImpactExplorer({ periods, categories }: { periods: PeriodData[]; categories: string[] }) {
+  const [period, setPeriod] = useState(periods[0]?.period ?? "");
+  const [category, setCategory] = useState("All");
+  const [filtered, setFiltered] = useState(false); // after the first filter click, cards no longer stagger in
+  const gridRef = useRef<HTMLUListElement>(null);
+  const { show } = useScrollReveal(gridRef);
+
+  // The newest period is shown first; /impact?period=2024–25 opens another one
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("period");
+    if (fromUrl && periods.some((p) => p.period === fromUrl)) setPeriod(fromUrl);
+  }, [periods]);
+
+  const current = periods.find((p) => p.period === period) ?? periods[0];
+  if (!current) return <p className="text-lg text-muted">Projects will appear here soon.</p>;
+
+  const total = current.projects.reduce((sum, p) => sum + p.peopleReached, 0);
+  const chips = ["All", ...categories.filter((c) => current.projects.some((p) => p.category === c))];
+  const visible = category === "All" ? current.projects : current.projects.filter((p) => p.category === category);
+
+  function choosePeriod(p: string) {
+    setPeriod(p);
+    setCategory("All");
+    setFiltered(true);
+    window.history.replaceState(null, "", `?period=${encodeURIComponent(p)}`);
+  }
+
+  return (
+    // reducedMotion="user": with "reduce motion" switched on, cards fade but don't move or slide
+    <MotionConfig reducedMotion="user">
+      {periods.length > 1 && (
+        <div role="group" aria-label="Choose a year" className="mb-12 flex flex-wrap gap-2">
+          {periods.map((p) => (
+            <button
+              key={p.period}
+              type="button"
+              onClick={() => choosePeriod(p.period)}
+              aria-pressed={p.period === current.period}
+              className={`rounded-full px-5 py-2.5 font-semibold transition-colors ${
+                p.period === current.period ? "bg-ink text-white" : "bg-mist text-ink hover:bg-pink-soft"
+              }`}
+            >
+              {p.period}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ---------- The big total ---------- */}
+      <section aria-labelledby="total-title" className="grid gap-12 border-b border-grey/40 pb-16 lg:grid-cols-[1.1fr_1fr] lg:items-end">
+        <h2 id="total-title" className="sr-only">
+          {current.period} in numbers
+        </h2>
+        <div>
+          <p className="font-display text-[clamp(5rem,16vw,10rem)] font-bold leading-[0.85] text-pink">
+            <CountUp key={current.period} to={total} />
+          </p>
+          <p className="mt-4 font-display text-3xl font-semibold text-ink">people taking part</p>
+          <p className="mt-1 text-lg text-muted">in {current.period}</p>
+          <p className="mt-4 max-w-md text-sm text-muted">Counted per project; some people joined more than one project.</p>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-10">
+          <div className="flex flex-col-reverse gap-1">
+            <dt className="text-muted">projects delivered</dt>
+            <dd className="font-display text-5xl font-bold text-ink">
+              <CountUp key={current.period} to={current.projects.length} />
+            </dd>
+          </div>
+          {current.highlights.map((h) => (
+            <div key={h.slug} className="flex flex-col-reverse gap-1">
+              <dt className="text-muted">
+                {h.label}
+                <Link href={`/impact/${h.slug}`} className="mt-0.5 block text-sm font-semibold text-pink hover:underline">
+                  {h.title}
+                </Link>
+              </dt>
+              <dd className="font-display text-5xl font-bold text-ink">
+                {/^\d+$/.test(h.number) ? <CountUp key={current.period} to={Number(h.number)} /> : h.number}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* ---------- Category filter + project grid ---------- */}
+      <section aria-labelledby="projects-title" className="pt-16">
+        <h2 id="projects-title" className="font-display text-4xl font-bold lowercase sm:text-5xl">
+          our projects
+        </h2>
+        <div role="group" aria-label="Filter projects by category" className="mt-6 flex flex-wrap gap-2">
+          {chips.map((c) => {
+            const active = c === category;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => {
+                  setCategory(c);
+                  setFiltered(true);
+                }}
+                aria-pressed={active}
+                className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  active ? "text-white" : "bg-mist text-ink hover:bg-pink-soft"
+                }`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="category-pill"
+                    className="absolute inset-0 rounded-full bg-pink"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="relative">{c}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="sr-only" aria-live="polite">
+          {visible.length} {visible.length === 1 ? "project" : "projects"} shown
+        </p>
+
+        <ul ref={gridRef} className="relative mt-10 grid gap-x-8 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {visible.map((p, i) => (
+              <motion.li
+                key={p.slug}
+                layout
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={show ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 24, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={
+                  show
+                    ? { duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: filtered ? 0 : Math.min(i, 8) * 0.06 }
+                    : { duration: 0 }
+                }
+              >
+                <ProjectCard project={p} />
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
+      </section>
+    </MotionConfig>
+  );
+}
+
+// ---------- ProjectGallery: photos in columns; clicking one opens it big (a "lightbox") ----------
+// In the lightbox: arrow keys or the buttons go to the next/previous photo, Esc closes it,
+// Tab stays inside the lightbox, and on close the focus goes back to the photo you clicked.
+export function ProjectGallery({ images }: { images: { src: string; alt: string }[] }) {
+  const reduce = useReducedMotion();
+  const [index, setIndex] = useState<number | null>(null);
+  const open = index !== null;
+  const triggers = useRef<(HTMLButtonElement | null)[]>([]);
+  const openedFrom = useRef(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const count = images.length;
+
+  function openAt(i: number) {
+    openedFrom.current = i;
+    setIndex(i);
+  }
+  function close() {
+    setIndex(null);
+    triggers.current[openedFrom.current]?.focus();
+  }
+  function step(direction: number) {
+    setIndex((i) => (i === null ? i : (i + direction + count) % count));
+  }
+
+  // While the lightbox is open: keyboard keys, focus trap, and no page scrolling behind it
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    closeRef.current?.focus();
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIndex(null);
+        triggers.current[openedFrom.current]?.focus();
+      } else if (e.key === "ArrowRight") {
+        setIndex((i) => (i === null ? i : (i + 1) % count));
+      } else if (e.key === "ArrowLeft") {
+        setIndex((i) => (i === null ? i : (i - 1 + count) % count));
+      } else if (e.key === "Tab" && dialog) {
+        const buttons = Array.from(dialog.querySelectorAll<HTMLElement>("button"));
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (!dialog.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        } else if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = oldOverflow;
+    };
+  }, [open, count]);
+
+  const current = index !== null ? images[index] : null;
+
+  return (
+    <>
+      <ul className="columns-1 gap-6 sm:columns-2 lg:columns-3">
+        {images.map((img, i) => (
+          <li key={img.src + i} className="mb-6 break-inside-avoid">
+            <button
+              ref={(el) => {
+                triggers.current[i] = el;
+              }}
+              type="button"
+              onClick={() => openAt(i)}
+              aria-label={`Open photo ${i + 1} of ${count}: ${img.alt}`}
+              className="group block w-full cursor-zoom-in rounded-2xl"
+            >
+              <span className="photo-frame block">
+                <Image
+                  src={img.src}
+                  alt=""
+                  width={1200}
+                  height={900}
+                  sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
+                  unoptimized={!isOwnImage(img.src)}
+                  className="block h-auto w-full transition-transform duration-500 motion-safe:group-hover:scale-[1.04]"
+                />
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <AnimatePresence>
+        {current && index !== null && (
+          <motion.div
+            key="lightbox"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Photo ${index + 1} of ${count}`}
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-plum/95 px-4 py-16 text-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduce ? 0 : 0.2 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) close(); // a click on the dark background closes it
+            }}
+          >
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={close}
+              aria-label="Close"
+              className="absolute right-4 top-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl transition-colors hover:bg-pink focus-visible:outline-white"
+            >
+              ×
+            </button>
+
+            {/* The photo itself: no faded edges here, so the whole picture is visible */}
+            <motion.div
+              key={index}
+              className="relative h-[70vh] w-full max-w-5xl"
+              initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Image
+                src={current.src}
+                alt={current.alt}
+                fill
+                sizes="(min-width: 1024px) 1024px, 100vw"
+                unoptimized={!isOwnImage(current.src)}
+                className="object-contain"
+              />
+            </motion.div>
+            <p className="mt-4 max-w-3xl text-center text-white/85">
+              {current.alt} <span className="text-white/60">· {index + 1} / {count}</span>
+            </p>
+
+            {count > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => step(-1)}
+                  aria-label="Previous photo"
+                  className="absolute left-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-2xl transition-colors hover:bg-pink focus-visible:outline-white sm:left-6"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => step(1)}
+                  aria-label="Next photo"
+                  className="absolute right-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-2xl transition-colors hover:bg-pink focus-visible:outline-white sm:right-6"
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

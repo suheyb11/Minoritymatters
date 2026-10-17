@@ -9,6 +9,7 @@ const menu = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/messages", label: "Messages" },
   { href: "/admin/services", label: "Our work" },
+  { href: "/admin/projects", label: "Projects" },
   { href: "/admin/blog", label: "Blog" },
   { href: "/admin/press", label: "Press" },
   { href: "/admin/values", label: "Values" },

@@ -29,6 +29,8 @@ model Setting {
   xUrl          String @default("")
   facebookUrl   String @default("")
   youtubeUrl    String @default("")
+  instagramUrl  String @default("")
+  linkedinUrl   String @default("")
   aboutLead     String @default("")
   aboutStory    String @default("")
   vision        String @default("")
@@ -60,6 +62,27 @@ model Service {
   sortOrder Int     @default(0)
   published Boolean @default(true)
   kind      String  @default("programme") // "area" = one of the 5 main service areas, "programme" = a named programme
+}
+
+// "Impact": the projects we delivered, grouped by period (for example "2025–26")
+model Project {
+  id             Int     @id @default(autoincrement())
+  title          String
+  slug           String  @unique
+  period         String  @default("") // for example "2025–26"
+  category       String  @default("") // one of PROJECT_CATEGORIES in lib/db.ts
+  summary        String  @default("") // 1–2 sentences
+  body           String  @default("") // paragraphs separated by a blank line
+  stats          String  @default("") // one per line: "number|label", e.g. "93|boys aged 11–16"
+  peopleReached  Int     @default(0) // 0 = not counted in the total
+  coverImage     String  @default("")
+  gallery        String  @default("") // one image per line: "path" or "path | description"
+  relatedService String  @default("") // a Service slug, or ""
+  sortOrder      Int     @default(0)
+  published      Boolean @default(true)
+  // The one project shown as "Featured story" on the home page (only one at a time)
+  isFeatured       Boolean @default(false)
+  featuredHeadline String  @default("") // optional; the project title is used when empty
 }
 
 model Value {
