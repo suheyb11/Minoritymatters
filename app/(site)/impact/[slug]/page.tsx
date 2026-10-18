@@ -1,7 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getProjects, getProjectBySlug, getServices, getSettings, toParagraphs, toStats, toGallery } from "@/lib/db";
+import {
+  getEventsForProject,
+  getProjects,
+  getProjectBySlug,
+  getServices,
+  getSettings,
+  toParagraphs,
+  toStats,
+  toGallery,
+  formatEventDay,
+} from "@/lib/db";
 import { Reveal, CountUp, ProjectGallery } from "@/components/Motion";
 
 // Build every published project in advance so it opens instantly. New projects are built on their first visit.
@@ -37,6 +47,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const service = project.relatedService
     ? (await getServices()).find((s) => s.slug === project.relatedService)
     : undefined;
+
+  const sessions = await getEventsForProject(project.slug);
 
   // Previous / next project in the same period
   const siblings = await getProjects(project.period);
@@ -97,6 +109,26 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             {p}
           </p>
         ))}
+
+        {sessions.length > 0 && (
+          <section aria-labelledby="sessions-title" className="mt-12">
+            <h2 id="sessions-title" className="font-display text-2xl font-bold text-ink">
+              Sessions in this project
+            </h2>
+            <ul className="mt-4 divide-y divide-[#e5e3e8]">
+              {sessions.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-baseline gap-x-6 gap-y-1 py-3">
+                  <time dateTime={e.startsAt.toISOString()} className="w-full shrink-0 text-sm text-muted sm:w-36">
+                    {formatEventDay(e.startsAt)}
+                  </time>
+                  <Link href={`/events/${e.slug}`} className="min-w-0 flex-1 font-semibold hover:text-pink">
+                    {e.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {service && (
           <p className="mt-10 text-lg">

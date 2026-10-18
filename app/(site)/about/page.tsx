@@ -122,9 +122,12 @@ export default async function AboutPage() {
             </li>
           ))}
         </ul>
-        <p className="pb-14 text-center">
+        <p className="flex flex-wrap justify-center gap-x-8 gap-y-3 pb-14 text-center">
           <Link href="/values" className="font-semibold text-pink underline-offset-4 hover:underline">
             Read about our values
+          </Link>
+          <Link href="/press" className="font-semibold text-pink underline-offset-4 hover:underline">
+            Our work in the press
           </Link>
         </p>
       </section>

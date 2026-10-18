@@ -8,7 +8,7 @@ import crypto from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { prisma, makeSlug } from "@/lib/db";
+import { prisma, makeSlug, fromLondonInput, EVENT_AUDIENCES } from "@/lib/db";
 import { uploadImage, contentTypeFor } from "@/lib/storage";
 import { requireAdmin, checkPasswordAndLogIn, logOut } from "@/lib/auth";
 
@@ -350,4 +350,128 @@ export async function deleteMessage(formData: FormData) {
   await requireAdmin();
   await prisma.message.deleteMany({ where: { id: num(formData, "id") } });
   redirect("/admin/messages?deleted=1");
+}
+
+// ---------- Events ----------
+
+// Text without HTML tags, cut to a maximum length
+function plain(formData: FormData, name: string, max = 10000) {
+  return text(formData, name).replace(/<[^>]*>/g, "").replace(/[<>]/g, "").slice(0, max);
+}
+
+// A whole number, or null when the box is empty ("no limit")
+function optionalNumber(formData: FormData, name: string) {
+  const value = text(formData, name);
+  if (!value) return null;
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+const BOOKING_TYPES = ["form", "external", "none"];
+const BOOKING_STATUSES = ["confirmed", "waitlist", "cancelled", "attended"];
+
+export async function saveEvent(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const back = `/admin/events?${id ? "edit=" + id : "new=1"}`;
+  const title = plain(formData, "title", 200);
+
+  // The date boxes are London time; fromLondonInput turns them into the right UTC moment
+  const startsAt = fromLondonInput(text(formData, "startsAt"));
+  const endsAt = fromLondonInput(text(formData, "endsAt"));
+  if (!title || !startsAt || (endsAt && endsAt < startsAt)) redirect(back + "&error=date");
+
+  const bookingType = BOOKING_TYPES.includes(text(formData, "bookingType")) ? text(formData, "bookingType") : "form";
+  const bookingUrl = text(formData, "bookingUrl").slice(0, 500);
+  if (bookingType === "external" && !/^https?:\/\//.test(bookingUrl)) redirect(back + "&error=url");
+
+  const data = {
+    title,
+    slug: makeSlug(text(formData, "slug") || title),
+    summary: plain(formData, "summary", 500),
+    body: plain(formData, "body"),
+    startsAt,
+    endsAt,
+    location: plain(formData, "location", 200),
+    address: plain(formData, "address", 300),
+    audience: EVENT_AUDIENCES.includes(text(formData, "audience")) ? text(formData, "audience") : "Everyone",
+    ageMin: optionalNumber(formData, "ageMin"),
+    ageMax: optionalNumber(formData, "ageMax"),
+    price: plain(formData, "price", 100) || "Free",
+    capacity: optionalNumber(formData, "capacity"),
+    bookingType,
+    bookingUrl: bookingType === "external" ? bookingUrl : "",
+    bookingClosesAt: fromLondonInput(text(formData, "bookingClosesAt")),
+    coverImage: await imageFrom(formData, "coverImage"),
+    projectSlug: text(formData, "projectSlug"),
+    published: checkbox(formData, "published"),
+  };
+
+  try {
+    if (id) {
+      await prisma.event.update({ where: { id }, data });
+    } else {
+      await prisma.event.create({ data });
+    }
+  } catch (error) {
+    if (!isDuplicateError(error)) throw error;
+    redirect(back + "&error=slug");
+  }
+  refreshSite();
+  redirect("/admin/events?saved=1");
+}
+
+export async function deleteEvent(formData: FormData) {
+  await requireAdmin();
+  // Its bookings are deleted with it (onDelete: Cascade in prisma/schema.prisma)
+  await prisma.event.deleteMany({ where: { id: num(formData, "id") } });
+  refreshSite();
+  redirect("/admin/events?deleted=1");
+}
+
+// Copies an event as a hidden draft, without its bookings. Handy for sessions that repeat.
+export async function duplicateEvent(formData: FormData) {
+  await requireAdmin();
+  const event = await prisma.event.findUnique({ where: { id: num(formData, "id") } });
+  if (!event) redirect("/admin/events");
+
+  // Find a free web address: "baking-copy", then "baking-copy-2", ...
+  let slug = `${event.slug}-copy`;
+  for (let i = 2; await prisma.event.findUnique({ where: { slug } }); i++) slug = `${event.slug}-copy-${i}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id, createdAt, ...fields } = event;
+  const copy = await prisma.event.create({ data: { ...fields, title: `${event.title} (copy)`, slug, published: false } });
+  redirect(`/admin/events?edit=${copy.id}&saved=1`);
+}
+
+export async function setBookingStatus(formData: FormData) {
+  await requireAdmin();
+  const status = text(formData, "status");
+  const booking = await prisma.booking.findUnique({ where: { id: num(formData, "id") } });
+  if (!booking) redirect("/admin/events");
+  if (BOOKING_STATUSES.includes(status)) {
+    await prisma.booking.update({ where: { id: booking.id }, data: { status } });
+    refreshSite(); // the places left on the event page change
+  }
+  redirect(`/admin/events?bookings=${booking.eventId}&saved=1`);
+}
+
+export async function markAllAttended(formData: FormData) {
+  await requireAdmin();
+  const eventId = num(formData, "eventId");
+  await prisma.booking.updateMany({ where: { eventId, status: "confirmed" }, data: { status: "attended" } });
+  refreshSite();
+  redirect(`/admin/events?bookings=${eventId}&saved=1`);
+}
+
+// Data protection: we don't keep people's details longer than needed.
+// Deletes the bookings of every event that ended more than 12 months ago (the events themselves stay).
+export async function deleteOldBookings() {
+  await requireAdmin();
+  const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+  const result = await prisma.booking.deleteMany({
+    where: { event: { OR: [{ endsAt: { lt: cutoff } }, { endsAt: null, startsAt: { lt: cutoff } }] } },
+  });
+  redirect(`/admin/events?cleaned=${result.count}`);
 }

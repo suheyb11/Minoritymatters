@@ -158,6 +158,18 @@ export function Notice({ saved, deleted, error }: { saved?: string; deleted?: st
         That web address (slug) is already used. Change the title or the slug and save again.
       </p>
     );
+  if (error === "date")
+    return (
+      <p className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        Please fill in a title and a start date and time. The end must be after the start.
+      </p>
+    );
+  if (error === "url")
+    return (
+      <p className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        Please add the booking link (starting with https://) for “Link to another booking site”.
+      </p>
+    );
   if (saved) return <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Saved. The website is updated.</p>;
   if (deleted) return <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Deleted.</p>;
   return null;
@@ -172,5 +184,70 @@ export function ReasonBadge({ reason }: { reason: string }) {
     >
       {reason}
     </span>
+  );
+}
+
+// A submit button that asks for confirmation first (for bigger actions)
+export function ConfirmButton({ label, message, className = "" }: { label: string; message: string; className?: string }) {
+  return (
+    <button
+      type="submit"
+      onClick={(e) => {
+        if (!confirm(message)) e.preventDefault();
+      }}
+      className={className || "rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-ink hover:bg-gray-100"}
+    >
+      {label}
+    </button>
+  );
+}
+
+// Opens the browser's print window (the page shows a print-only register, see Admin > Events > Bookings)
+export function PrintButton({ label = "Print register" }: { label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => window.print()}
+      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-ink hover:bg-gray-100"
+    >
+      {label}
+    </button>
+  );
+}
+
+// Event form: how people book. The link box only shows for "Link to another booking site".
+export function BookingTypeFields({ defaultType, defaultUrl }: { defaultType: string; defaultUrl: string }) {
+  const [type, setType] = useState(defaultType);
+  const choices = [
+    { value: "form", label: "Booking form on our website" },
+    { value: "external", label: "Link to another booking site" },
+    { value: "none", label: "No booking needed" },
+  ];
+  return (
+    <fieldset className="space-y-3">
+      <legend className="mb-1.5 text-sm font-semibold text-ink">How do people book?</legend>
+      {choices.map((c) => (
+        <label key={c.value} className="flex items-center gap-3 text-sm">
+          <input
+            type="radio"
+            name="bookingType"
+            value={c.value}
+            checked={type === c.value}
+            onChange={() => setType(c.value)}
+            className="h-4 w-4 accent-[#e71d73]"
+          />
+          {c.label}
+        </label>
+      ))}
+      {type === "external" && (
+        <label className="block pt-1">
+          <span className="mb-1.5 block text-sm font-semibold text-ink">
+            Booking link <span className="text-pink">*</span>
+          </span>
+          <input name="bookingUrl" type="url" defaultValue={defaultUrl} required placeholder="https://..." className="field" />
+          <span className="mt-1 block text-xs text-muted">For example a Plinth, Eventbrite or Google Form link.</span>
+        </label>
+      )}
+    </fieldset>
   );
 }

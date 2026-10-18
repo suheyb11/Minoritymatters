@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma, formatDate } from "@/lib/db";
+import { prisma, formatDate, getUpcomingEvents } from "@/lib/db";
 import { ReasonBadge } from "@/components/AdminUI";
 
 export default async function AdminDashboard() {
@@ -7,6 +7,12 @@ export default async function AdminDashboard() {
     { label: "Messages", value: await prisma.message.count(), href: "/admin/messages" },
     { label: "Programmes", value: await prisma.service.count(), href: "/admin/services" },
     { label: "Projects", value: await prisma.project.count(), href: "/admin/projects" },
+    { label: "Upcoming events", value: (await getUpcomingEvents()).length, href: "/admin/events" },
+    {
+      label: "New bookings (last 7 days)",
+      value: await prisma.booking.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
+      href: "/admin/events",
+    },
     { label: "Blog posts", value: await prisma.post.count(), href: "/admin/blog" },
     { label: "Press items", value: await prisma.pressItem.count(), href: "/admin/press" },
     { label: "Values", value: await prisma.value.count(), href: "/admin/values" },

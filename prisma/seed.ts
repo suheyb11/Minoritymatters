@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // ---------- Start with empty tables ----------
+  await prisma.event.deleteMany(); // also deletes the bookings
   await prisma.message.deleteMany();
   await prisma.funder.deleteMany();
   await prisma.post.deleteMany();
@@ -240,6 +241,28 @@ async function main() {
   for (let i = 0; i < funders.length; i++) {
     await prisma.funder.create({ data: { ...funders[i], sortOrder: i + 1 } });
   }
+
+  // ---------- Events: one hidden example, so the admin can see how events work ----------
+  // (No real events: the charity adds those in Admin → Events.)
+  const start = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  start.setUTCHours(10, 0, 0, 0);
+  await prisma.event.create({
+    data: {
+      title: "Example event – edit or delete",
+      slug: "example-event",
+      summary: "This is an example. Edit it to add a real event, or delete it.",
+      body: "Write a few sentences about the event here.\n\nLeave an empty line between paragraphs.",
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 2 * 60 * 60 * 1000),
+      location: "Our office",
+      address: "51 Corker Walk, Andover Estate, London, N7 7RY",
+      audience: "Families",
+      price: "Free",
+      capacity: 20,
+      bookingType: "form",
+      published: false,
+    },
+  });
 
   console.log("Database filled with the starting content.");
   console.log("To add the 2025–26 projects (Impact pages), run: npx tsx scripts/seed-projects-2025-26.ts");

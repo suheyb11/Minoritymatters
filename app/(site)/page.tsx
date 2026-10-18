@@ -10,6 +10,8 @@ import {
   getProjects,
   getProjectPeriods,
   getFeaturedProject,
+  getNextEvent,
+  formatEventDate,
   toProjectCard,
   toStats,
   formatDate,
@@ -35,6 +37,9 @@ const pillars = [
   },
 ];
 
+// Refresh at least every 5 minutes, so the "Next event" bar moves on when an event has finished
+export const revalidate = 300;
+
 export default async function HomePage() {
   const settings = await getSettings();
   const areas = (await getServices()).filter((s) => s.kind === "area"); // the 5 main service areas
@@ -58,6 +63,9 @@ export default async function HomePage() {
     { value: thisYear.length, suffix: "", label: "projects delivered this year", focus: false },
     { value: 150, suffix: "+", label: "teachers trained in safeguarding", focus: false },
   ].filter((s) => s.value > 0);
+
+  // ---------- The slim "Next event" bar under the hero (hidden when there is no upcoming event) ----------
+  const nextEvent = await getNextEvent();
 
   // ---------- The featured story (chosen in Admin → Projects) ----------
   const story = await getFeaturedProject();
@@ -108,6 +116,29 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ---------- Next event: one line that links to the event (wraps to two lines on phones) ---------- */}
+      {nextEvent && (
+        <aside aria-label="Next event" className="border-y border-[#e5e3e8]">
+          <Link
+            href={`/events/${nextEvent.slug}`}
+            className="group mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 sm:px-6"
+          >
+            <span className="min-w-0 flex-1 basis-64">
+              <span className="font-semibold text-pink">Next event:</span>{" "}
+              <span className="font-semibold text-ink group-hover:text-pink">{nextEvent.title}</span>
+              <span className="text-muted">
+                {" "}
+                · {formatEventDate(nextEvent.startsAt, nextEvent.endsAt)}
+                {nextEvent.location && <> · {nextEvent.location}</>}
+              </span>
+            </span>
+            <span className="shrink-0 rounded-full bg-pink px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-pink-dark">
+              {nextEvent.bookingType === "none" ? "See details" : "Book a place"}
+            </span>
+          </Link>
+        </aside>
+      )}
 
       {/* ---------- Welcome + three pillars ---------- */}
       <section className="bg-mist">

@@ -13,10 +13,11 @@ import {
   useScroll,
   useTransform,
 } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { ProjectCardData } from "@/lib/db"; // only the type: the database code is not sent to the browser
+import type { ProjectCardData, EventCardData } from "@/lib/db"; // only the types: the database code is not sent to the browser
+import { bookPlace, type BookingState } from "@/app/(site)/events/actions";
 
 // ---------- Reveal: fades content up when the page opens, or when it scrolls into view ----------
 // Content on screen when the page opens fades up with a CSS animation (.reveal-rise in globals.css),
@@ -1207,5 +1208,267 @@ export function ProjectGallery({ images }: { images: { src: string; alt: string 
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+// ---------- EventCard: one upcoming event on the /events page ----------
+// The whole card is one link. The photo only shows on bigger screens, to keep cards short on phones.
+export function EventCard({ event }: { event: EventCardData }) {
+  const left = event.placesLeft;
+  return (
+    <Link
+      href={`/events/${event.slug}`}
+      className="group flex gap-4 rounded-2xl border border-[#e5e3e8] bg-white p-4 transition-colors hover:border-pink sm:gap-6 sm:p-6"
+    >
+      <time dateTime={event.startsAtIso} className="flex w-14 shrink-0 flex-col items-center pt-1 text-pink sm:w-16">
+        <span className="font-display text-4xl font-bold leading-none sm:text-5xl">{event.day}</span>
+        <span className="mt-1 text-sm font-semibold uppercase tracking-wide">{event.month}</span>
+      </time>
+      <div className="min-w-0 flex-1">
+        <h4 className="break-words font-display text-xl font-semibold leading-snug text-ink group-hover:text-pink sm:text-2xl">
+          {event.title}
+        </h4>
+        <p className="mt-1 text-muted">
+          {event.dateLine}
+          {event.location && <> · {event.location}</>}
+        </p>
+        <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-full bg-mist px-3 py-1 font-semibold text-ink">{event.audienceLine}</span>
+          <span className="px-1 font-semibold text-ink">{event.price}</span>
+          {left !== null &&
+            (left > 0 ? (
+              <span className="rounded-full bg-pink-soft px-3 py-1 font-semibold text-pink">
+                {left} {left === 1 ? "place" : "places"} left
+              </span>
+            ) : (
+              <span className="rounded-full bg-mist px-3 py-1 font-semibold text-muted">Fully booked – join the waiting list</span>
+            ))}
+        </p>
+      </div>
+      {event.coverImage && (
+        <div className="hidden w-44 shrink-0 md:block">
+          <div className="photo-frame relative aspect-[4/3] bg-mist">
+            <Image
+              src={event.coverImage}
+              alt=""
+              fill
+              sizes="176px"
+              unoptimized={!isOwnImage(event.coverImage)}
+              className="object-cover transition-transform duration-700 motion-safe:group-hover:scale-[1.04]"
+            />
+          </div>
+        </div>
+      )}
+    </Link>
+  );
+}
+
+// ---------- EventList: audience filter chips + upcoming events grouped by month ----------
+// /events?for=girls opens with "Girls" chosen. Cards rise in once (CSS, so they show without JavaScript);
+// after that, changing the filter animates the cards into their new places.
+function audienceSlug(audience: string) {
+  return audience.toLowerCase().replace(/\s+/g, "-");
+}
+
+export function EventList({ events, audiences }: { events: EventCardData[]; audiences: string[] }) {
+  const [audience, setAudience] = useState("All");
+  const [filtered, setFiltered] = useState(false);
+
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("for");
+    const match = audiences.find((a) => audienceSlug(a) === fromUrl);
+    if (match) {
+      setAudience(match);
+      setFiltered(true);
+    }
+  }, [audiences]);
+
+  function choose(a: string) {
+    setAudience(a);
+    setFiltered(true);
+    window.history.replaceState(null, "", a === "All" ? window.location.pathname : `?for=${audienceSlug(a)}`);
+  }
+
+  // Only show chips for audiences that have events. Events for "Everyone" are shown under every filter.
+  const chips = ["All", ...audiences.filter((a) => events.some((e) => e.audience === a))];
+  const visible = audience === "All" ? events : events.filter((e) => e.audience === audience || e.audience === "Everyone");
+  const months = [...new Set(visible.map((e) => e.monthHeading))];
+
+  return (
+    <MotionConfig reducedMotion="user">
+      {chips.length > 2 && (
+        <div role="group" aria-label="Show events for" className="mt-6 flex flex-wrap gap-2">
+          {chips.map((c) => {
+            const active = c === audience;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => choose(c)}
+                aria-pressed={active}
+                className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  active ? "text-white" : "bg-mist text-ink hover:bg-pink-soft"
+                }`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="audience-pill"
+                    className="absolute inset-0 rounded-full bg-pink"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="relative">{c}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <p className="sr-only" aria-live="polite">
+        {visible.length} {visible.length === 1 ? "event" : "events"} shown
+      </p>
+
+      {visible.length === 0 && <p className="mt-10 text-lg text-muted">No upcoming events for {audience.toLowerCase()} right now.</p>}
+
+      <div className="mt-10 space-y-12">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {months.map((month) => (
+            <motion.section key={month} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} aria-label={month}>
+              <h3 className="font-display text-2xl font-semibold text-ink">{month}</h3>
+              <ul className="mt-4 space-y-4">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {visible
+                    .filter((e) => e.monthHeading === month)
+                    .map((e) => (
+                      <motion.li
+                        key={e.slug}
+                        layout
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.97 }}
+                        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                        className={filtered ? "" : "reveal-rise"}
+                        style={filtered ? undefined : { animationDelay: `${Math.min(events.indexOf(e), 8) * 0.06}s` }}
+                      >
+                        <EventCard event={e} />
+                      </motion.li>
+                    ))}
+                </AnimatePresence>
+              </ul>
+            </motion.section>
+          ))}
+        </AnimatePresence>
+      </div>
+    </MotionConfig>
+  );
+}
+
+// ---------- BookingForm: the booking form on an event page ----------
+// Saved by bookPlace in app/(site)/events/actions.ts, which checks everything again on the server.
+const startBooking: BookingState = { ok: false, waitlist: false, message: "", error: "" };
+
+export function BookingForm({ eventId, placesLeft }: { eventId: number; placesLeft: number | null }) {
+  const [state, formAction, pending] = useActionState(bookPlace, startBooking);
+  const [children, setChildren] = useState(0);
+  const full = placesLeft === 0;
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <div aria-live="polite">
+        <AnimatePresence mode="wait">
+          {state.ok ? (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, y: 12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className="mt-5 rounded-2xl bg-white p-6"
+            >
+              <p className="font-display text-2xl font-bold text-pink">
+                {state.waitlist ? "You're on the waiting list" : "You're booked!"}
+              </p>
+              <p className="mt-2 text-ink">{state.message}</p>
+            </motion.div>
+          ) : (
+            <motion.form key="form" action={formAction} exit={{ opacity: 0 }} className="mt-5 space-y-4">
+              <input type="hidden" name="eventId" value={eventId} />
+              {full && (
+                <p className="rounded-lg bg-white px-4 py-3 text-sm text-ink">
+                  This event is fully booked. Fill in the form to join the waiting list.
+                </p>
+              )}
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold">Your name *</span>
+                <input name="name" required maxLength={200} autoComplete="name" className="field" />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold">Email *</span>
+                <input name="email" type="email" required maxLength={200} autoComplete="email" className="field" />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold">Phone</span>
+                <input name="phone" type="tel" maxLength={50} autoComplete="tel" className="field" />
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-semibold">Adults</span>
+                  <input name="adults" type="number" min={0} max={10} defaultValue={1} required className="field" />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-semibold">Children</span>
+                  <input
+                    name="children"
+                    type="number"
+                    min={0}
+                    max={10}
+                    defaultValue={0}
+                    required
+                    onChange={(e) => setChildren(Number(e.target.value) || 0)}
+                    className="field"
+                  />
+                </label>
+              </div>
+              {children > 0 && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-semibold">Children&apos;s ages</span>
+                  <input name="childAges" maxLength={200} placeholder="For example 8, 11" className="field" />
+                </label>
+              )}
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold">Anything we should know?</span>
+                <textarea name="notes" rows={3} maxLength={1000} placeholder="Access needs or questions" className="field" />
+              </label>
+              <label className="flex items-start gap-3 text-sm text-ink">
+                <input type="checkbox" name="consent" required className="mt-0.5 h-5 w-5 shrink-0 accent-[#e71d73]" />
+                <span>
+                  I am the parent or guardian of any children I&apos;m booking for, and I agree to Minority Matters using these
+                  details to manage this booking. Questions about your details?{" "}
+                  <Link href="/contact" className="font-semibold text-pink underline">
+                    Contact us
+                  </Link>
+                  .
+                </span>
+              </label>
+              {/* Hidden spam trap */}
+              <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
+
+              {state.error && (
+                <p className="rounded-lg bg-white px-4 py-3 text-sm font-medium text-pink-dark" role="alert">
+                  {state.error}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={pending}
+                className="w-full rounded-full bg-pink px-7 py-3.5 font-semibold text-white transition-colors hover:bg-pink-dark disabled:opacity-60"
+              >
+                {pending ? "Sending…" : full ? "Join the waiting list" : "Book my place"}
+              </button>
+              <p className="text-xs text-muted">* required</p>
+            </motion.form>
+          )}
+        </AnimatePresence>
+      </div>
+    </MotionConfig>
   );
 }

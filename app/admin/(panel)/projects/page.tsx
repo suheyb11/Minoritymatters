@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getProjects, getServices, prisma, PROJECT_CATEGORIES } from "@/lib/db";
+import { getProjects, getServices, getEventStatsByProject, prisma, PROJECT_CATEGORIES } from "@/lib/db";
 import { saveProject, deleteProject } from "../../actions";
 import { Field, TextArea, ImageField, Checkbox, SaveButton, DeleteButton, AdminTitle, Notice } from "@/components/AdminUI";
 
@@ -9,7 +9,9 @@ export default async function ProjectsAdmin({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const projects = await getProjects(undefined, true);
   const services = await getServices(true);
+  const eventStats = await getEventStatsByProject(); // linked events, shown as a hint only
   const editing = params.edit ? await prisma.project.findUnique({ where: { id: Number(params.edit) } }) : null;
+  const linked = editing ? eventStats[editing.slug] : undefined;
   const showForm = Boolean(editing || params.new);
 
   // The list is grouped by period, newest period first
@@ -57,7 +59,12 @@ export default async function ProjectsAdmin({ searchParams }: { searchParams: Pr
             name="peopleReached"
             type="number"
             defaultValue={editing?.peopleReached ?? 0}
-            hint="Added to the total on the Impact page. Use 0 to leave this project out of the total."
+            hint={
+              "Added to the total on the Impact page. Use 0 to leave this project out of the total." +
+              (linked
+                ? ` Hint: ${linked.events} linked ${linked.events === 1 ? "event" : "events"} with ${linked.attended} attended places in Admin → Events (not added automatically).`
+                : "")
+            }
           />
           <ImageField label="Cover photo" name="coverImage" defaultValue={editing?.coverImage} />
           <div>
@@ -151,6 +158,12 @@ export default async function ProjectsAdmin({ searchParams }: { searchParams: Pr
                       {!p.published && <span className="ml-2 rounded bg-mist px-2 py-0.5 text-xs text-muted">Hidden</span>}
                     </p>
                     <p className="truncate text-sm text-muted">{p.summary}</p>
+                    {eventStats[p.slug] && (
+                      <p className="text-xs text-muted">
+                        {eventStats[p.slug].events} linked {eventStats[p.slug].events === 1 ? "event" : "events"} ·{" "}
+                        {eventStats[p.slug].attended} attended places
+                      </p>
+                    )}
                   </div>
                   <Link href={`/admin/projects?edit=${p.id}`} className="rounded-full px-3 py-1.5 text-sm font-semibold text-pink hover:bg-pink-soft">
                     Edit

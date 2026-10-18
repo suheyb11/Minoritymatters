@@ -94,6 +94,7 @@ export default function Footer({ settings }: { settings: Setting }) {
             {[
               ["/our-work", "Our work"],
               ["/impact", "Our impact"],
+              ["/events", "Events"],
               ["/press", "Press"],
               ["/blog", "Blog"],
               ["/about", "About"],

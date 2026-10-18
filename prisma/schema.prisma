@@ -134,3 +134,47 @@ model Message {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 }
+
+// "Events": activities, trips and sessions people can come to (/events)
+model Event {
+  id              Int       @id @default(autoincrement())
+  title           String
+  slug            String    @unique
+  summary         String    @default("") // 1–2 sentences for cards
+  body            String    @default("") // paragraphs separated by a blank line
+  startsAt        DateTime
+  endsAt          DateTime?
+  location        String    @default("") // e.g. "Sobell Leisure Centre"
+  address         String    @default("") // full address incl. postcode
+  audience        String    @default("Everyone") // one of EVENT_AUDIENCES in lib/db.ts
+  ageMin          Int?
+  ageMax          Int?
+  price           String    @default("Free") // free text: "Free", "£2 per child"
+  capacity        Int? // null = unlimited
+  bookingType     String    @default("form") // "form" | "external" | "none"
+  bookingUrl      String    @default("") // Plinth / Eventbrite / Google Form link when external
+  bookingClosesAt DateTime?
+  coverImage      String    @default("")
+  projectSlug     String    @default("") // link to an Impact project (optional)
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  bookings        Booking[]
+}
+
+// Places booked through the form on an event page. Never shown on public pages (only counts).
+model Booking {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name      String // parent/guardian or adult attendee
+  email     String
+  phone     String   @default("")
+  adults    Int      @default(1)
+  children  Int      @default(0)
+  childAges String   @default("") // e.g. "8, 11"
+  notes     String   @default("") // access needs or questions (optional)
+  status    String   @default("confirmed") // "confirmed" | "waitlist" | "cancelled" | "attended"
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+}

@@ -10,6 +10,7 @@ const menu = [
   { href: "/admin/messages", label: "Messages" },
   { href: "/admin/services", label: "Our work" },
   { href: "/admin/projects", label: "Projects" },
+  { href: "/admin/events", label: "Events" },
   { href: "/admin/blog", label: "Blog" },
   { href: "/admin/press", label: "Press" },
   { href: "/admin/values", label: "Values" },
@@ -24,7 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-white lg:flex">
-      <aside className="border-b border-gray-200 bg-white text-ink lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
+      <aside className="border-b border-gray-200 bg-white text-ink print:hidden lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3 px-6 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/logo.png" alt="" className="h-10 w-10 rounded-full border border-gray-200 bg-white" />
@@ -58,9 +59,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </form>
         </div>
       </aside>
-      <main className="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-10 lg:py-10">
+      <main className="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-10 lg:py-10 print:p-0">
         {children}
-        <form action={logoutAction} className="mt-10 lg:hidden">
+        <form action={logoutAction} className="mt-10 lg:hidden print:hidden">
           <button className="text-sm font-semibold text-muted underline">Log out</button>
         </form>
       </main>
