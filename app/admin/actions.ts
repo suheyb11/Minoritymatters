@@ -1,16 +1,41 @@
 "use server";
 
 // All admin "save" and "delete" actions live in this file.
-// Every action first checks that the admin is logged in.
+// Every action first checks that the admin is logged in (Users and Email sending: the Administrator).
 
 import path from "path";
 import crypto from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { prisma, makeSlug, fromLondonInput, EVENT_AUDIENCES } from "@/lib/db";
+import { prisma, makeSlug, fromLondonInput, EVENT_AUDIENCES, SITE_URL } from "@/lib/db";
 import { uploadImage, contentTypeFor } from "@/lib/storage";
-import { requireAdmin, checkPasswordAndLogIn, logOut } from "@/lib/auth";
+import {
+  requireAdmin,
+  requireAdministrator,
+  checkLogin,
+  setSession,
+  logOut,
+  normalEmail,
+  hashPassword,
+  checkPassword,
+} from "@/lib/auth";
+import { tooMany } from "@/lib/rate-limit";
+import { getMailConfig, sendMail, encrypt, replyToAddress, EMAIL_PATTERN } from "@/lib/mail";
+import {
+  emailKey,
+  getConversation,
+  syncReplies,
+  attachmentStorage,
+  deleteReplyFiles,
+  safeFileName,
+  attachmentExtension,
+  ATTACH_MAX,
+  ATTACH_SIZE,
+  ATTACH_TOTAL,
+  ATTACH_TYPES,
+  type ReplyFile,
+} from "@/lib/conversations";
 
 // ---------- Small helpers ----------
 
@@ -59,14 +84,56 @@ function refreshSite() {
 // ---------- Login / logout ----------
 
 export async function loginAction(formData: FormData) {
-  const ok = await checkPasswordAndLogIn(text(formData, "password"));
-  if (!ok) redirect("/admin/login?error=1");
+  // At most 10 tries per visitor in 10 minutes, so passwords can't be guessed
+  if (await tooMany("login", 10)) redirect("/admin/login?error=busy");
+  const id = await checkLogin(text(formData, "email"), String(formData.get("password") || ""));
+  if (id === null) redirect("/admin/login?error=wrong");
+  await setSession(id, checkbox(formData, "remember"));
   redirect("/admin");
 }
 
 export async function logoutAction() {
   await logOut();
-  redirect("/admin/login");
+  redirect("/admin/login?out=1");
+}
+
+// ---------- Users (Website managers; Administrator only) ----------
+
+export async function addManager(formData: FormData) {
+  await requireAdministrator();
+  const name = plain(formData, "name", 200);
+  const email = normalEmail(text(formData, "email"));
+  const password = String(formData.get("password") || "");
+  if (!name || !EMAIL_PATTERN.test(email)) redirect("/admin/users?error=missing");
+  if (password.length < 12) redirect("/admin/users?error=short");
+  if (email === normalEmail(process.env.ADMIN_EMAIL || "")) redirect("/admin/users?error=exists");
+  try {
+    await prisma.adminUser.create({ data: { name, email, passwordHash: hashPassword(password) } });
+  } catch (error) {
+    if (!isDuplicateError(error)) throw error;
+    redirect("/admin/users?error=exists");
+  }
+  redirect("/admin/users?saved=1");
+}
+
+export async function removeManager(formData: FormData) {
+  await requireAdministrator();
+  await prisma.adminUser.deleteMany({ where: { id: num(formData, "id") } });
+  redirect("/admin/users?deleted=1");
+}
+
+// My account: change your own password (Website managers; the Administrator's password is ADMIN_PASSWORD)
+export async function changePassword(formData: FormData) {
+  const admin = await requireAdmin();
+  if (admin.isAdministrator) redirect("/admin/account");
+  const user = await prisma.adminUser.findUnique({ where: { id: admin.id } });
+  if (!user || !checkPassword(String(formData.get("current") || ""), user.passwordHash)) redirect("/admin/account?error=wrong");
+  const password = String(formData.get("new") || "");
+  if (password.length < 12) redirect("/admin/account?error=short");
+  await prisma.adminUser.update({ where: { id: user.id }, data: { passwordHash: hashPassword(password) } });
+  // The new password changes the cookie's signature: log this person straight back in
+  await setSession(user.id, false);
+  redirect("/admin/account?saved=1");
 }
 
 // ---------- Settings ----------
@@ -106,10 +173,51 @@ export async function saveSettings(formData: FormData) {
       founderVideoUrl: text(formData, "founderVideoUrl"),
       founderIntro: text(formData, "founderIntro"),
       founderTranscript: text(formData, "founderTranscript"),
+      contactNotifyEmail: text(formData, "contactNotifyEmail"),
+      bookingNotifyEmail: text(formData, "bookingNotifyEmail"),
+      donateGiveyUrl: text(formData, "donateGiveyUrl"),
     },
   });
   refreshSite();
   redirect("/admin/settings?saved=1");
+}
+
+// ---------- Email sending (Administrator only, see lib/mail.ts) ----------
+
+export async function saveMailSettings(formData: FormData) {
+  await requireAdministrator();
+  const old = await getMailConfig();
+  const port = num(formData, "port");
+  const pass = String(formData.get("pass") || "").replace(/\s+/g, "");
+  const user = normalEmail(text(formData, "user"));
+  const fromAddress = normalEmail(text(formData, "fromAddress"));
+  await prisma.mailConfig.update({
+    where: { id: 1 },
+    data: {
+      user: EMAIL_PATTERN.test(user) ? user : "",
+      fromAddress: EMAIL_PATTERN.test(fromAddress) ? fromAddress : "",
+      // An empty password box keeps the saved password (it is never shown again)
+      pass: checkbox(formData, "forget") ? "" : pass ? encrypt(pass) : old.pass,
+      host: text(formData, "host").replace(/[^a-z0-9.-]/gi, "") || "smtp.gmail.com",
+      port: [25, 465, 587, 2525].includes(port) ? port : 587,
+      lastError: "",
+      imapError: "",
+    },
+  });
+  redirect("/admin/settings?mail=saved#mail");
+}
+
+export async function sendTestEmail(formData: FormData) {
+  await requireAdministrator();
+  const to = normalEmail(text(formData, "to"));
+  if (!EMAIL_PATTERN.test(to)) redirect("/admin/settings?mail=bad-to#mail");
+  await prisma.mailConfig.update({ where: { id: 1 }, data: { lastError: "" } });
+  const ok = await sendMail({
+    to,
+    subject: "Test email from the Minority Matters website",
+    text: `This is a test email from the website.\n\nIf it arrived in your inbox (not Spam), email sending works.\n\n${SITE_URL}/`,
+  });
+  redirect(`/admin/settings?mail=${ok ? "sent" : "failed"}&to=${encodeURIComponent(to)}#mail`);
 }
 
 // ---------- Services (Our work) ----------
@@ -334,22 +442,132 @@ export async function deleteFunder(formData: FormData) {
   redirect("/admin/funders?deleted=1");
 }
 
-// ---------- Messages ----------
+// ---------- Messages (conversations, see lib/conversations.ts) ----------
 
-export async function toggleMessageRead(formData: FormData) {
+function messagesUrl(email: string, params: Record<string, string> = {}) {
+  const query = new URLSearchParams({ ...(email ? { with: email } : {}), ...params }).toString();
+  return "/admin/messages" + (query ? "?" + query : "");
+}
+
+// "Mark as unread" goes back to the list (opening the conversation would mark it read again)
+export async function markConversationUnread(formData: FormData) {
   await requireAdmin();
-  const id = num(formData, "id");
-  const message = await prisma.message.findUnique({ where: { id } });
-  if (message) {
-    await prisma.message.update({ where: { id }, data: { isRead: !message.isRead } });
-  }
+  const email = emailKey(text(formData, "with"));
+  const last = await prisma.message.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  if (last) await prisma.message.update({ where: { id: last.id }, data: { isRead: false } });
   redirect("/admin/messages");
 }
 
-export async function deleteMessage(formData: FormData) {
+// Delete a whole conversation: the messages, the replies and the files sent with them
+export async function deleteConversation(formData: FormData) {
   await requireAdmin();
-  await prisma.message.deleteMany({ where: { id: num(formData, "id") } });
+  const email = emailKey(text(formData, "with"));
+  if (email) {
+    const replies = await prisma.reply.findMany({ where: { email } });
+    await deleteReplyFiles(replies);
+    await prisma.reply.deleteMany({ where: { email } });
+    await prisma.message.deleteMany({ where: { email: { equals: email, mode: "insensitive" } } });
+  }
   redirect("/admin/messages?deleted=1");
+}
+
+// "Check for email replies"
+export async function checkEmailReplies(formData: FormData) {
+  await requireAdmin();
+  const email = emailKey(text(formData, "with"));
+  let params: Record<string, string>;
+  try {
+    params = { checked: String(await syncReplies(true)) };
+  } catch {
+    params = { error: "imap" };
+  }
+  redirect(messagesUrl(email, params));
+}
+
+// Step 1 of attaching files: the browser asks where to upload them (straight to Storage, see ReplyForm),
+// because Vercel refuses requests bigger than 4.5 MB. Returns one upload address per file, or a problem.
+export async function prepareAttachments(files: { name: string; size: number }[]) {
+  await requireAdmin();
+  if (files.length > ATTACH_MAX) return { error: "files" as const };
+  if (files.some((f) => f.size > ATTACH_SIZE) || files.reduce((sum, f) => sum + f.size, 0) > ATTACH_TOTAL) return { error: "file-size" as const };
+  if (files.some((f) => !ATTACH_TYPES.includes(attachmentExtension(f.name)))) return { error: "file-type" as const };
+
+  const storage = await attachmentStorage();
+  const folder = crypto.randomBytes(12).toString("hex");
+  const uploads = [];
+  for (const f of files) {
+    const filePath = `${folder}/${safeFileName(f.name)}`;
+    const { data, error } = await storage.createSignedUploadUrl(filePath);
+    if (error || !data) return { error: "file-failed" as const };
+    uploads.push({ name: f.name, path: filePath, size: f.size, url: data.signedUrl });
+  }
+  return { uploads };
+}
+
+// Step 2: send the reply (with the files uploaded in step 1)
+export async function sendReply(formData: FormData) {
+  const admin = await requireAdmin();
+  const email = emailKey(text(formData, "with"));
+  const back = (params: Record<string, string>) => redirect(messagesUrl(email, params) + "#reply");
+
+  // Only people who wrote to us through the website can be answered here (the admin is not an open mail server)
+  const incoming = (await getConversation(email)).flatMap((i) => (i.type === "in" ? [i.message] : []));
+  if (!incoming.length || !EMAIL_PATTERN.test(email)) redirect("/admin/messages");
+
+  const subject = plain(formData, "subject", 200).replace(/[\r\n]+/g, " ") || "Re: your message to Minority Matters";
+  const body = plain(formData, "body", 20000);
+  if (!body) back({ error: "empty" });
+  if (body.length > 10000) back({ error: "long" });
+
+  // The uploaded files: only from the attachments folder, and checked again on the server
+  let files: ReplyFile[] = [];
+  try {
+    const list = JSON.parse(String(formData.get("files") || "[]"));
+    files = (Array.isArray(list) ? list : []).map((f) => ({ name: safeFileName(String(f.name)), path: String(f.path), size: 0 }));
+  } catch {
+    files = [];
+  }
+  if (files.some((f) => !/^[a-f0-9]{24}\/[A-Za-z0-9_.-]+$/.test(f.path))) back({ error: "file-failed" });
+  if (files.length > ATTACH_MAX) back({ error: "files" });
+  const attachments = [];
+  if (files.length) {
+    const storage = await attachmentStorage();
+    for (const f of files) {
+      const { data, error } = await storage.download(f.path);
+      if (error || !data) back({ error: "file-failed" });
+      const content = Buffer.from(await data!.arrayBuffer());
+      f.size = content.length;
+      attachments.push({ filename: f.name, content });
+    }
+    if (files.some((f) => f.size > ATTACH_SIZE) || files.reduce((sum, f) => sum + f.size, 0) > ATTACH_TOTAL) {
+      await storage.remove(files.map((f) => f.path));
+      back({ error: "file-size" });
+    }
+  }
+
+  // The email: the reply, a signature, and the person's last message underneath
+  const last = incoming[incoming.length - 1];
+  const signature = admin.isAdministrator ? "Minority Matters" : `${admin.name}\nMinority Matters`;
+  const mailText =
+    `${body}\n\n--\n${signature}\n${SITE_URL}/\n\n` +
+    `----- Your message of ${last.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" })} -----\n` +
+    last.message;
+  const replyTo = await replyToAddress();
+  const sent = await sendMail({
+    to: email,
+    subject,
+    text: mailText,
+    replyTo: replyTo ? `Minority Matters <${replyTo}>` : undefined,
+    attachments,
+  });
+
+  // Saved either way, so the conversation shows what was written
+  await prisma.reply.create({ data: { email, subject, body, files, sent, authorName: admin.name } });
+  await prisma.message.updateMany({ where: { id: { in: incoming.map((m) => m.id) } }, data: { isRead: true } });
+  back(sent ? { sent: "1" } : { error: "mail" });
 }
 
 // ---------- Events ----------
@@ -455,6 +673,15 @@ export async function setBookingStatus(formData: FormData) {
     refreshSite(); // the places left on the event page change
   }
   redirect(`/admin/events?bookings=${booking.eventId}&saved=1`);
+}
+
+export async function deleteBooking(formData: FormData) {
+  await requireAdmin();
+  const booking = await prisma.booking.findUnique({ where: { id: num(formData, "id") } });
+  if (!booking) redirect("/admin/events");
+  await prisma.booking.delete({ where: { id: booking.id } });
+  refreshSite(); // the places left on the event page change
+  redirect(`/admin/events?bookings=${booking.eventId}&deleted=1`);
 }
 
 export async function markAllAttended(formData: FormData) {

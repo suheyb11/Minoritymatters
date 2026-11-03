@@ -16,6 +16,7 @@ import {
   duplicateEvent,
   setBookingStatus,
   markAllAttended,
+  deleteBooking,
   deleteOldBookings,
 } from "../../actions";
 import {
@@ -41,7 +42,7 @@ const bookingTypeLabels: Record<string, string> = { form: "Our form", external: 
 export default async function EventsAdmin({ searchParams }: { searchParams: Promise<Params> }) {
   await requireAdmin();
   const params = await searchParams;
-  if (params.bookings) return <BookingsView eventId={Number(params.bookings)} saved={params.saved} />;
+  if (params.bookings) return <BookingsView eventId={Number(params.bookings)} saved={params.saved} deleted={params.deleted} />;
 
   const events = await prisma.event.findMany({ orderBy: { startsAt: "asc" } });
   const projects = await getProjects(undefined, true);
@@ -245,7 +246,7 @@ function EventTable({ rows, totals }: { rows: Event[]; totals: Totals }) {
 }
 
 // ---------- Bookings for one event (/admin/events?bookings=<id>) ----------
-async function BookingsView({ eventId, saved }: { eventId: number; saved?: string }) {
+async function BookingsView({ eventId, saved, deleted }: { eventId: number; saved?: string; deleted?: string }) {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: { bookings: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
@@ -279,6 +280,7 @@ async function BookingsView({ eventId, saved }: { eventId: number; saved?: strin
           {event.capacity !== null && ` · ${event.capacity} places`}
         </p>
         {saved && <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Saved.</p>}
+        {deleted && <p className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">Booking deleted.</p>}
 
         <dl className="mb-6 grid grid-cols-3 gap-4 sm:max-w-xl">
           {[
@@ -314,7 +316,7 @@ async function BookingsView({ eventId, saved }: { eventId: number; saved?: strin
             <table className="w-full min-w-[64rem] text-left text-sm">
               <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  {["Name", "Email", "Phone", "Adults", "Children", "Ages", "Notes", "Status", "Booked at"].map((h) => (
+                  {["Name", "Email", "Phone", "Adults", "Children", "Ages", "Notes", "Status", "Booked at", ""].map((h) => (
                     <th key={h} className="p-3 font-semibold">
                       {h}
                     </th>
@@ -350,6 +352,12 @@ async function BookingsView({ eventId, saved }: { eventId: number; saved?: strin
                     </td>
                     <td className="whitespace-nowrap p-3 text-muted">
                       {formatEventDate(b.createdAt, null)}
+                    </td>
+                    <td className="p-3 print:hidden">
+                      <form action={deleteBooking}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <DeleteButton message={`Delete the booking of ${b.name}? This cannot be undone.`} />
+                      </form>
                     </td>
                   </tr>
                 ))}

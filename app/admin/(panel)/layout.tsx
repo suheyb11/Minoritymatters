@@ -20,8 +20,13 @@ const menu = [
 
 // Every page inside (panel) needs the admin to be logged in
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const unread = await prisma.message.count({ where: { isRead: false } });
+  const links = [
+    ...menu,
+    ...(admin.isAdministrator ? [{ href: "/admin/users", label: "Users" }] : []),
+    { href: "/admin/account", label: "My account" },
+  ];
 
   return (
     <div className="min-h-screen bg-white lg:flex">
@@ -33,7 +38,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
         <nav className="overflow-x-auto px-3 pb-3 lg:pb-0">
           <ul className="flex gap-1 lg:flex-col">
-            {menu.map((m) => (
+            {links.map((m) => (
               <li key={m.href}>
                 <Link
                   href={m.href}
@@ -49,6 +54,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </ul>
         </nav>
         <div className="hidden space-y-1 border-t border-gray-200 px-3 pt-4 mt-4 mx-3 lg:block">
+          <p className="truncate px-3 pb-1 text-xs text-muted">Logged in as {admin.name}</p>
           <Link href="/" target="_blank" className="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-gray-100 hover:text-ink">
             View website
           </Link>

@@ -17,6 +17,8 @@ import {
   formatDate,
   toParagraphs,
 } from "@/lib/db";
+import { donateOptions } from "@/lib/donate";
+import { DonateButton } from "@/components/Donate";
 import { HeroRing, Reveal, CountUp, PlayIcon, PlayRing, GlowPhoto } from "@/components/Motion";
 
 const pillars = [
@@ -100,14 +102,12 @@ export default async function HomePage() {
                 >
                   See our work
                 </Link>
-                <a
-                  href={settings.donateUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <DonateButton
+                  options={donateOptions(settings)}
                   className="rounded-full border-2 border-pink px-6 py-3 font-semibold text-pink transition-colors hover:bg-pink hover:text-white"
                 >
                   Donate to our work
-                </a>
+                </DonateButton>
               </div>
             </Reveal>
           </div>
@@ -460,14 +460,12 @@ export default async function HomePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a
-              href={settings.donateUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <DonateButton
+              options={donateOptions(settings)}
               className="rounded-full bg-white px-6 py-3.5 font-semibold text-pink transition-colors hover:bg-plum hover:text-white"
             >
               Donate
-            </a>
+            </DonateButton>
             <Link
               href="/contact"
               className="rounded-full border-2 border-white px-6 py-3 font-semibold text-white transition-colors hover:bg-white hover:text-pink"

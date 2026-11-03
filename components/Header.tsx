@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { DonateOption } from "@/lib/donate";
+import { DonateButton } from "@/components/Donate";
 
 const links = [
   { href: "/", label: "home" },
@@ -16,7 +18,7 @@ const links = [
   { href: "/contact", label: "contact" },
 ];
 
-export default function Header({ donateUrl }: { donateUrl: string }) {
+export default function Header({ donateOptions }: { donateOptions: DonateOption[] }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -69,14 +71,12 @@ export default function Header({ donateUrl }: { donateUrl: string }) {
         </nav>
 
         <div className="flex items-center gap-2">
-          <a
-            href={donateUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <DonateButton
+            options={donateOptions}
             className="rounded-full bg-pink px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-pink-dark"
           >
             Donate
-          </a>
+          </DonateButton>
           <button
             type="button"
             className="flex h-11 w-11 items-center justify-center rounded-full bg-mist lg:hidden"

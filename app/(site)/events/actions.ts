@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, getPlacesTaken, isFinished, formatEventDay } from "@/lib/db";
+import { sendMail, EMAIL_PATTERN } from "@/lib/mail";
+import { tooMany } from "@/lib/rate-limit";
 
 export type BookingState = { ok: boolean; waitlist: boolean; message: string; error: string };
 
@@ -32,6 +34,8 @@ function fail(error: string): BookingState {
 export async function bookPlace(_prev: BookingState, formData: FormData): Promise<BookingState> {
   // Hidden field: bots fill it, people don't. Pretend it worked so the bot moves on.
   if (String(formData.get("website") || "")) return { ok: true, waitlist: false, message: "Thank you.", error: "" };
+  // At most 15 bookings per visitor in 10 minutes, so events can't be filled up by a script
+  if (await tooMany("book", 15)) return fail("Too many bookings from your connection. Please wait a few minutes and try again.");
 
   const eventId = Number(formData.get("eventId")) || 0;
   const name = clean(formData, "name", 200);
@@ -100,24 +104,16 @@ export async function bookPlace(_prev: BookingState, formData: FormData): Promis
   };
 }
 
-// Optional: email the charity a short notice through Resend (resend.com).
-// Only runs when RESEND_API_KEY and BOOKING_NOTIFY_EMAIL are set; a failed email never stops the booking.
+// Optional: email the charity a short notice. Only when "Booking notification email" is filled in under
+// Site settings (or BOOKING_NOTIFY_EMAIL in .env). Sent through Email sending, or Resend when that is off (lib/mail.ts).
+// A failed email never stops the booking.
 async function notifyCharity(eventTitle: string, name: string, places: number, status: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.BOOKING_NOTIFY_EMAIL;
-  if (!apiKey || !to) return;
-  try {
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: process.env.BOOKING_FROM_EMAIL || "Minority Matters website <onboarding@resend.dev>",
-        to,
-        subject: `New booking: ${eventTitle}`,
-        text: `${name} booked ${places} ${places === 1 ? "place" : "places"} for ${eventTitle} (${status}).\n\nSee all bookings in the admin panel: Admin > Events > Bookings.`,
-      }),
-    });
-  } catch (error) {
-    console.error("Booking notice email failed", error);
-  }
+  const settings = await prisma.setting.findUnique({ where: { id: 1 } });
+  const to = (settings?.bookingNotifyEmail || "").trim() || process.env.BOOKING_NOTIFY_EMAIL || "";
+  if (!EMAIL_PATTERN.test(to)) return;
+  await sendMail({
+    to,
+    subject: `New booking: ${eventTitle}`,
+    text: `${name} booked ${places} ${places === 1 ? "place" : "places"} for ${eventTitle} (${status}).\n\nSee all bookings in the admin panel: Admin > Events > Bookings.`,
+  });
 }

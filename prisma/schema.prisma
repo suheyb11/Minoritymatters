@@ -47,6 +47,12 @@ model Setting {
   founderVideoUrl   String @default("") // YouTube, Vimeo or .mp4 link
   founderIntro      String @default("")
   founderTranscript String @default("") // lines starting with [mm:ss] show a time
+  // A copy of every contact form message is emailed here. Empty = no emails (messages are always saved)
+  contactNotifyEmail String @default("")
+  // We email this address when someone books a place on an event. Empty = BOOKING_NOTIFY_EMAIL in .env, or no emails
+  bookingNotifyEmail String @default("")
+  // The second way to donate. With both donate links filled in, the Donate buttons let people choose (/donate)
+  donateGiveyUrl     String @default("")
 }
 
 // "Our work": the 5 main service areas and the named programmes
@@ -123,16 +129,67 @@ model Funder {
   sortOrder Int     @default(0)
 }
 
-// Contact form messages
+// Contact form messages, and email answers copied from the mailbox (reason "Email reply", see lib/conversations.ts)
 model Message {
   id        Int      @id @default(autoincrement())
   name      String
   email     String
   phone     String   @default("")
   message   String
-  reason    String   @default("General enquiry") // one of the choices in lib/reasons.ts
+  reason    String   @default("General enquiry") // one of the choices in lib/reasons.ts, or "Email reply"
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+  subject   String   @default("") // email answers only
+  messageId String   @default("") // email answers only: the email's Message-ID, so it is copied once
+
+  @@index([email])
+}
+
+// Replies sent from Admin > Messages. Grouped with the messages by email address (one conversation per person).
+model Reply {
+  id         Int      @id @default(autoincrement())
+  email      String // the person the reply was sent to (lower case)
+  subject    String
+  body       String
+  files      Json     @default("[]") // [{ name, path, size }]: files in the private Storage bucket "attachments"
+  sent       Boolean  @default(false) // false = saved, but the email could not be delivered
+  authorName String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+}
+
+// Website managers: they log in at /admin/login with their email and password.
+// The Administrator is not in this table: they log in with ADMIN_PASSWORD (.env), see lib/auth.ts.
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique // lower case
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// How the website sends email (Admin > Site settings > Email sending). There is only one row (id = 1).
+model MailConfig {
+  id          Int       @id @default(1)
+  user        String    @default("") // the Google account, e.g. info@minoritymatters.org.uk
+  fromAddress String    @default("") // optional "Send as" address (an alias of the account)
+  pass        String    @default("") // the App password, encrypted (lib/mail.ts)
+  host        String    @default("smtp.gmail.com")
+  port        Int       @default(587)
+  lastError   String    @default("") // the last sending error, shown in the admin
+  imapError   String    @default("") // the last error while checking the mailbox for email answers
+  lastSyncAt  DateTime? // when the mailbox was last checked
+  seen        String    @default("") // emails already looked at, one "folder:uid" per line (the last 5000)
+}
+
+// Counts form uses per visitor (a hash of the IP address) for 10 minutes, so forms can't be flooded
+model RateHit {
+  id        Int      @id @default(autoincrement())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }
 
 // "Events": activities, trips and sessions people can come to (/events)

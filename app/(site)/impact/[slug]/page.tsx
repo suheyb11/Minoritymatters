@@ -12,6 +12,8 @@ import {
   toGallery,
   formatEventDay,
 } from "@/lib/db";
+import { donateOptions } from "@/lib/donate";
+import { DonateButton } from "@/components/Donate";
 import { Reveal, CountUp, ProjectGallery } from "@/components/Motion";
 
 // Build every published project in advance so it opens instantly. New projects are built on their first visit.
@@ -178,14 +180,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             <p className="mt-3 max-w-xl text-lg text-white/85">Your donation helps us run projects like this for local families.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <a
-              href={settings.donateUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <DonateButton
+              options={donateOptions(settings)}
               className="rounded-full bg-white px-6 py-3.5 font-semibold text-pink transition-colors hover:bg-plum hover:text-white"
             >
               Donate
-            </a>
+            </DonateButton>
             <Link
               href="/contact"
               className="rounded-full border-2 border-white px-6 py-3 font-semibold text-white transition-colors hover:bg-white hover:text-pink"

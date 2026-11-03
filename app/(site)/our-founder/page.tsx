@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSettings, toParagraphs } from "@/lib/db";
+import { donateOptions } from "@/lib/donate";
+import { DonateButton } from "@/components/Donate";
 import PageHeader from "@/components/PageHeader";
 import { VideoPlayer, Transcript, ShareButton, Reveal } from "@/components/Motion";
 
@@ -74,14 +76,12 @@ export default async function OurFounderPage() {
               >
                 See our work
               </Link>
-              <a
-                href={settings.donateUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <DonateButton
+                options={donateOptions(settings)}
                 className="rounded-full border-2 border-white px-6 py-3 font-semibold text-white transition-colors hover:bg-white hover:text-pink"
               >
                 Donate
-              </a>
+              </DonateButton>
             </div>
           </div>
         </Reveal>

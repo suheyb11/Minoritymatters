@@ -1,10 +1,19 @@
 import { getSettings } from "@/lib/db";
-import { saveSettings } from "../../actions";
+import { requireAdmin } from "@/lib/auth";
+import { getMailConfig, mailReady, senderAddress } from "@/lib/mail";
+import { saveSettings, saveMailSettings, sendTestEmail } from "../../actions";
 import { Field, TextArea, ImageField, SaveButton, AdminTitle, Notice } from "@/components/AdminUI";
 
-export default async function SettingsAdmin({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
-  const { saved } = await searchParams;
+export default async function SettingsAdmin({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string; mail?: string; to?: string }>;
+}) {
+  const { saved, mail: mailState, to } = await searchParams;
   const s = await getSettings();
+  const admin = await requireAdmin();
+  const mail = await getMailConfig();
+  const ready = mailReady(mail);
 
   return (
     <>
@@ -85,7 +94,28 @@ export default async function SettingsAdmin({ searchParams }: { searchParams: Pr
           <Field label="Email" name="email" type="email" defaultValue={s.email} />
           <Field label="Press email" name="pressEmail" type="email" defaultValue={s.pressEmail} />
           <Field label="Charity number" name="charityNumber" defaultValue={s.charityNumber} />
-          <Field label="Donate link (PayPal)" name="donateUrl" type="url" defaultValue={s.donateUrl} />
+          <Field label="Donate link 1 (PayPal)" name="donateUrl" type="url" defaultValue={s.donateUrl} />
+          <Field
+            label="Donate link 2 (Givey)"
+            name="donateGiveyUrl"
+            type="url"
+            defaultValue={s.donateGiveyUrl}
+            hint="When both links are filled in, the Donate buttons let people choose. Leave one empty to use only the other."
+          />
+          <Field
+            label="Booking notification email"
+            name="bookingNotifyEmail"
+            type="email"
+            defaultValue={s.bookingNotifyEmail}
+            hint="Optional: we email this address when someone books a place on an event. Empty = no emails (bookings are always saved under Events > Bookings)."
+          />
+          <Field
+            label="Contact form email"
+            name="contactNotifyEmail"
+            type="email"
+            defaultValue={s.contactNotifyEmail}
+            hint="We email a copy of every contact form message to this address, and email answers to your replies go here. Empty = no copies (messages are always saved under Messages)."
+          />
         </fieldset>
 
         <fieldset className="grid gap-4 rounded-2xl border border-gray-200 bg-white p-6 sm:grid-cols-2">
@@ -102,6 +132,101 @@ export default async function SettingsAdmin({ searchParams }: { searchParams: Pr
           <SaveButton label="Save settings" />
         </div>
       </form>
+
+      {/* ---------- Email sending (Administrator only): see lib/mail.ts ---------- */}
+      {admin.isAdministrator && (
+        <section id="mail" className="mt-12 scroll-mt-6 space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+          <h2 className="font-display text-xl font-bold">Email sending</h2>
+          <p className="max-w-3xl text-sm text-muted">
+            The website sends emails (replies from Messages, contact form copies, booking notices) through your Google account, from
+            your own address. Then they reach people&apos;s inbox instead of Spam, and a copy is kept in that mailbox&apos;s
+            &quot;Sent&quot; folder. When people answer your replies by email, their answers are also added to their conversation in
+            Messages (the website reads that mailbox, read-only, and only copies emails from people who wrote through the website).
+          </p>
+          <p className={`text-sm font-semibold ${ready ? "text-green-700" : "text-red-700"}`}>
+            {ready
+              ? `On: emails are sent through ${mail.host} as ${senderAddress(mail)}.`
+              : "Off: replies from Messages can't be sent by email until this is filled in."}
+          </p>
+          {mailState === "saved" && (
+            <p className="rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800" role="status">
+              Saved. Send a test email below to check it works.
+            </p>
+          )}
+          {mailState === "sent" && (
+            <p className="rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800" role="status">
+              Test email sent to {to}. Check that it arrived in the inbox (not Spam).
+            </p>
+          )}
+          {mailState === "bad-to" && (
+            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+              Please enter a valid email address for the test.
+            </p>
+          )}
+          {mailState === "failed" && (
+            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
+              The test email could not be sent{mail.lastError ? `: ${mail.lastError}` : "."}
+              {/auth|credentials|password/i.test(mail.lastError) && (
+                <>
+                  <br />
+                  Check the Google account email and the App password (16 letters).
+                </>
+              )}
+            </p>
+          )}
+
+          <form action={saveMailSettings} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Google account (email)"
+                name="user"
+                type="email"
+                defaultValue={mail.user}
+                hint="The Google Workspace mailbox that sends the emails, e.g. info@minoritymatters.org.uk."
+              />
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-ink">App password</span>
+                <input
+                  name="pass"
+                  type="password"
+                  placeholder={mail.pass ? "•••••••••••••••• (saved)" : "16 letters from Google"}
+                  autoComplete="new-password"
+                  className="field"
+                />
+                <span className="mt-1 block text-xs text-muted">
+                  Not the normal password: a Google &quot;App password&quot;. Leave empty to keep the saved one.
+                </span>
+              </label>
+              <Field
+                label="Send as"
+                name="fromAddress"
+                type="email"
+                defaultValue={mail.fromAddress}
+                hint="Optional. Must be the account itself or one of its aliases in Google."
+              />
+              <div className="grid grid-cols-[1fr_7rem] gap-3">
+                <Field label="Mail server" name="host" defaultValue={mail.host} />
+                <Field label="Port" name="port" type="number" defaultValue={mail.port} />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <SaveButton label="Save email sending" />
+              {mail.pass && (
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <input type="checkbox" name="forget" className="h-4 w-4 accent-[#e71d73]" /> Remove the saved password (turns it off)
+                </label>
+              )}
+            </div>
+          </form>
+
+          <form action={sendTestEmail} className="flex flex-wrap items-end gap-3 border-t border-gray-200 pt-4">
+            <div className="min-w-64 flex-1">
+              <Field label="Send a test email to" name="to" type="email" defaultValue={to || s.email} required />
+            </div>
+            <SaveButton label="Send test email" />
+          </form>
+        </section>
+      )}
     </>
   );
 }

@@ -34,6 +34,7 @@ async function main() {
       pressEmail: "media@minoritymatters.org.uk",
       charityNumber: "1160098",
       donateUrl: "https://www.paypal.com/donate/?hosted_button_id=SWYGWYRMF5GJU",
+      donateGiveyUrl: "https://www.givey.com/share?charity_id=minoritymattersltd&client_id=lSaVLTJm5um0uTE2q4VeEIbfxmLAy6x6vHOKfdKU",
       tiktokUrl: "https://www.tiktok.com/@mm_charity",
       xUrl: "https://x.com/mm_charity",
       facebookUrl: "https://www.facebook.com/MinorityMattersUK/",

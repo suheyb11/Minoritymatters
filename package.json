@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "data:export": "tsx scripts/export-data.ts",
     "data:import": "tsx scripts/import-data.ts",
-    "media:move": "tsx scripts/move-uploads.ts"
+    "media:move": "tsx scripts/move-uploads.ts",
+    "data:for-wordpress": "tsx scripts/export-for-wordpress.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -24,14 +25,19 @@
     "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.117.3",
     "framer-motion": "^14.2.0",
+    "imapflow": "^1.7.8",
+    "mailparser": "^3.14.1",
     "next": "15.5.28",
+    "nodemailer": "^7.0.13",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

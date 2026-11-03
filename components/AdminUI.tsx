@@ -202,6 +202,42 @@ export function ConfirmButton({ label, message, className = "" }: { label: strin
   );
 }
 
+// Users: a password box with a "Make a strong password" button (16 random letters and numbers)
+export function NewPasswordField() {
+  const [value, setValue] = useState("");
+  const make = () => {
+    const letters = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = new Uint32Array(16);
+    window.crypto.getRandomValues(bytes);
+    setValue(Array.from(bytes, (b) => letters[b % letters.length]).join(""));
+  };
+  return (
+    <div>
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-semibold text-ink">
+          Password <span className="text-pink">*</span>
+        </span>
+        <input
+          name="password"
+          type="text"
+          required
+          minLength={12}
+          autoComplete="new-password"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="field"
+        />
+        <span className="mt-1 block text-xs text-muted">
+          At least 12 characters. Give it to the person yourself (not by email); they can change it under My account.
+        </span>
+      </label>
+      <button type="button" onClick={make} className="mt-3 rounded-full border border-gray-300 px-5 py-2 text-sm font-semibold text-ink hover:bg-gray-100">
+        Make a strong password
+      </button>
+    </div>
+  );
+}
+
 // Opens the browser's print window (the page shows a print-only register, see Admin > Events > Bookings)
 export function PrintButton({ label = "Print register" }: { label?: string }) {
   return (

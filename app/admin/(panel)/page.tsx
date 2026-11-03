@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma, formatDate, getUpcomingEvents } from "@/lib/db";
 import { ReasonBadge } from "@/components/AdminUI";
+import { emailKey } from "@/lib/conversations";
+import { LiveRefresh } from "./messages/MessagesUI";
 
 export default async function AdminDashboard() {
   const cards = [
@@ -22,6 +24,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
+      <LiveRefresh />
       <h1 className="font-display text-3xl font-bold">Welcome back</h1>
       <p className="mt-1 text-muted">Manage the content of minoritymatters.org.uk from here.</p>
 
@@ -48,15 +51,20 @@ export default async function AdminDashboard() {
         ) : (
           <ul className="mt-4 divide-y divide-gray-200">
             {latest.map((m) => (
-              <li key={m.id} className="flex items-start justify-between gap-4 py-3">
-                <div>
-                  <p className="font-semibold">
-                    {m.name} {!m.isRead && <span className="ml-2 rounded-full bg-pink px-2 py-0.5 text-xs text-white">New</span>}{" "}
-                    <ReasonBadge reason={m.reason} />
-                  </p>
-                  <p className="line-clamp-1 text-sm text-muted">{m.message}</p>
-                </div>
-                <span className="shrink-0 text-xs text-muted">{formatDate(m.createdAt)}</span>
+              <li key={m.id}>
+                <Link
+                  href={`/admin/messages?with=${encodeURIComponent(emailKey(m.email))}`}
+                  className="-mx-2 flex items-start justify-between gap-4 rounded-lg px-2 py-3 hover:bg-mist"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold">
+                      {m.name} {!m.isRead && <span className="ml-2 rounded-full bg-pink px-2 py-0.5 text-xs text-white">New</span>}{" "}
+                      <ReasonBadge reason={m.reason} />
+                    </p>
+                    <p className="line-clamp-1 text-sm text-muted">{m.message}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted">{formatDate(m.createdAt)}</span>
+                </Link>
               </li>
             ))}
           </ul>

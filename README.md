@@ -41,7 +41,7 @@ To bring content from a backup instead of the seed, run `npm run data:import` in
 npm run dev                 # http://localhost:3000
 ```
 
-Admin panel: http://localhost:3000/admin (password = `ADMIN_PASSWORD` in `.env`).
+Admin panel: http://localhost:3000/admin (Administrator: password = `ADMIN_PASSWORD` in `.env`; Website managers are added under Admin > Users).
 
 `npm run db:seed` deletes everything and puts the original content back (see `prisma/seed.ts`), so only run it
 when you want to start over — on Supabase this also wipes everything changed in the admin.
@@ -98,7 +98,9 @@ components/
 lib/
   db.ts              Prisma client + all read functions
   storage.ts         uploads images to Supabase Storage
-  auth.ts            admin password login
+  auth.ts            admin login (Administrator + Website managers)
+  mail.ts            sending email (Google SMTP, set up in Admin > Site settings)
+  conversations.ts   Admin > Messages: conversations, replies, email answers (IMAP)
 prisma/
   schema.prisma      database tables
   seed.ts            starting content from the old website
@@ -137,7 +139,8 @@ scripts/
 |---|---|
 | `DATABASE_URL` | Supabase Transaction pooler string (port 6543) + `?pgbouncer=true&connection_limit=1&connect_timeout=30` |
 | `DIRECT_URL` | Supabase Session pooler string (port 5432) + `?connect_timeout=30` |
-| `ADMIN_PASSWORD` | the admin password |
+| `ADMIN_PASSWORD` | the Administrator password |
+| `ADMIN_EMAIL` | optional: the email the Administrator logs in with (empty = any email) |
 | `SESSION_SECRET` | a long random string |
 | `SUPABASE_URL` | `https://<project-ref>.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | the service_role key (secret — never `NEXT_PUBLIC_`) |
