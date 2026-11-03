@@ -1,0 +1,44 @@
+/* The Details box and the Site settings page */
+.mm-fields th {
+  width: 180px;
+}
+.mm-image-preview img {
+  display: block;
+  max-width: 220px;
+  max-height: 140px;
+  margin-top: 8px;
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+  background: #f6f7f7;
+}
+.mm-settings h2 {
+  margin-top: 2.5em;
+  padding-top: 1.5em;
+  border-top: 1px solid #dcdcde;
+}
+.mm-settings h2:first-of-type {
+  margin-top: 1em;
+  padding-top: 0;
+  border-top: 0;
+}
+.mm-message-body {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 760px;
+}
+.mm-unread td,
+.mm-unread th {
+  font-weight: 600;
+}
+.mm-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f0f0f1;
+  font-size: 12px;
+}
+.mm-status-confirmed { background: #e7f6ec; color: #0a5c2b; }
+.mm-status-waitlist { background: #fdf0d5; color: #7a4b00; }
+.mm-status-cancelled { background: #f0f0f1; color: #646970; text-decoration: line-through; }
+.mm-status-attended { background: #fde8f1; color: #c3135f; }

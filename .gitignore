@@ -47,3 +47,6 @@ next-env.d.ts
 /data/
 /prisma/*.db*
 /backup/
+
+# WordPress zip files (made from wordpress/, see wordpress/WORDPRESS.md)
+/wordpress/dist/

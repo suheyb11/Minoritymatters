@@ -1,0 +1,388 @@
+/* The theme's styles. Build assets/css/app.css from this file with: node wordpress/build-css.mjs
+   (Tailwind CSS looks through every .php and .js file of the theme for the classes it needs.) */
+
+@import "tailwindcss" source(none);
+@source "../../**/*.php";
+@source "../js/*.js";
+
+/* ---------- Fonts (self-hosted, same as the old website) ---------- */
+@font-face {
+  font-family: "Figtree Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url(../fonts/figtree-latin-ext-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Figtree Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url(../fonts/figtree-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(../fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Bricolage Grotesque Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(../fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- Everything below is copied from the old website's app/globals.css ---------- */
+
+/* Brand colours taken from the Minority Matters logo and icons */
+@theme {
+  --color-pink: #e71d73;
+  --color-pink-dark: #c3135f;
+  --color-pink-soft: #fde8f1;
+  --color-grey: #b2b2b2;
+  --color-ink: #2a2730;
+  --color-muted: #6b6772;
+  --color-mist: #f5f4f6;
+  --color-plum: #2b0f1d;
+
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+  --font-sans: "Figtree Variable", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-pink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Funders logo strip that slides slowly */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee 40s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Fade-up when the page first appears. Done in CSS so it works even before JavaScript loads
+   (content further down the page is animated on scroll by assets/js/app.js instead). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+}
+.reveal-rise {
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* ---------- Feathered photos ----------
+   These fade a photo's edges to transparent, so it melts into the background behind it
+   (white on most pages) instead of having a hard edge, border or rounded box.
+   Use them on content photos only — never on logos or icons. */
+
+/* All four edges fade (14% on each side) */
+.feather {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* A softer, thinner fade (6%) for small thumbnails */
+.feather-soft {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/* An oval vignette: sharp in the middle, fully faded at the middle of every edge */
+.feather-oval {
+  -webkit-mask-image: radial-gradient(ellipse closest-side at 50% 50%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse closest-side at 50% 50%, #000 55%, transparent 100%);
+}
+
+/* Only the top and bottom edges fade — for full-width bands */
+.feather-y {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%);
+}
+
+/* A photo with a soft coloured haze around it: a blurred copy of the photo sits behind the feathered photo */
+.photo-glow {
+  position: relative;
+  isolation: isolate;
+}
+.photo-glow-layer {
+  position: absolute;
+  inset: -8%;
+  z-index: -1;
+  filter: blur(40px) saturate(1.2);
+  opacity: 0.35;
+  pointer-events: none;
+}
+@media (max-width: 1023px) {
+  .photo-glow-layer {
+    opacity: 0.22;
+  }
+}
+
+/* ---------- Framed photos (press and impact project images) ---------- */
+.photo-frame {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid #e5e3e8;
+  border-radius: 1rem;
+  transition: border-color 0.3s;
+}
+.group:hover .photo-frame {
+  border-color: #cfcbd4;
+}
+
+/* Form fields (contact and booking forms) */
+.field {
+  width: 100%;
+  border: 1px solid #d9d6dd;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+  font-size: 0.95rem;
+}
+.field:focus {
+  outline: 2px solid var(--color-pink);
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+/* ---------- Animations that Framer Motion did in the old website (driven by assets/js/app.js) ---------- */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Ring: the pink arc draws itself (pathLength="100", so the dash numbers are percentages) */
+@keyframes ring-draw {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+.ring-arc {
+  animation: ring-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.2s backwards;
+}
+.ring-wait .ring-arc {
+  animation: none;
+  stroke-dasharray: 0 100;
+}
+
+/* HeroRing: the grey circle draws, the pink arc sweeps round and stops at the logo position */
+@keyframes hero-track {
+  from {
+    stroke-dasharray: 0 100;
+    opacity: 0;
+  }
+}
+@keyframes hero-sweep {
+  from {
+    transform: rotate(-300deg);
+  }
+}
+@keyframes hero-arc {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+.hero-track {
+  animation: hero-track 1.2s ease-in-out backwards;
+}
+.hero-sweep {
+  transform-box: view-box;
+  transform-origin: 50px 50px;
+  animation: hero-sweep 2s cubic-bezier(0.65, 0, 0.35, 1) 0.6s backwards;
+}
+.hero-arc {
+  animation: hero-arc 1.2s ease-out 0.6s backwards;
+}
+.hero-word {
+  transition:
+    opacity 0.45s,
+    transform 0.45s,
+    filter 0.45s;
+}
+.hero-word.is-out {
+  opacity: 0;
+  transform: translateY(-16px);
+  filter: blur(4px);
+}
+.hero-word.is-in {
+  opacity: 0;
+  transform: translateY(16px);
+  filter: blur(4px);
+  transition: none;
+}
+
+/* Open/close panels (programmes, transcript): the height animates with a grid row from 0fr to 1fr */
+.mm-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mm-collapse > * {
+  overflow: hidden;
+  min-height: 0;
+}
+.mm-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+@keyframes point-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.mm-collapse.is-open .point-in {
+  animation: point-in 0.35s backwards;
+}
+.plus {
+  transition:
+    transform 0.25s,
+    background-color 0.25s,
+    color 0.25s;
+}
+[aria-expanded="true"] .plus {
+  transform: rotate(45deg);
+}
+
+/* Filtered cards (Impact projects, events) fade and grow in */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.card-in {
+  animation: card-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* The mobile menu slides open */
+.mobile-menu {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+.mobile-menu > * {
+  overflow: hidden;
+  min-height: 0;
+}
+.mobile-menu.is-open {
+  grid-template-rows: 1fr;
+}
+.mobile-menu.is-open li {
+  animation: menu-in 0.3s backwards;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+/* Blog post text written in the WordPress editor */
+.post-body p {
+  margin-bottom: 1.5rem;
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: color-mix(in oklab, var(--color-ink) 85%, transparent);
+}
+.post-body a {
+  color: var(--color-pink);
+  text-decoration: underline;
+}
+.post-body h2,
+.post-body h3 {
+  margin: 2.5rem 0 1rem;
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+.post-body ul,
+.post-body ol {
+  margin: 0 0 1.5rem 1.25rem;
+  list-style: disc;
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+.post-body img {
+  height: auto;
+  border-radius: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track,
+  .reveal-rise,
+  .ring-arc,
+  .hero-track,
+  .hero-sweep,
+  .hero-arc,
+  .card-in,
+  .mobile-menu.is-open li,
+  .mm-collapse.is-open .point-in {
+    animation: none;
+  }
+  .mm-collapse,
+  .mobile-menu,
+  .hero-word {
+    transition: none;
+  }
+}
