@@ -50,7 +50,7 @@ export default async function AboutPage() {
             <Reveal>
               <h2 className="font-display text-4xl font-bold text-pink">Who we are</h2>
               {whoWeAre.map((p, i) => (
-                <p key={i} className={`mt-5 leading-relaxed ${i === 0 ? "text-xl text-ink" : "text-lg text-muted"}`}>
+                <p key={i} className={`mt-5 leading-relaxed ${i === 0 ? "text-xl text-ink" : "text-lg text-ink"}`}>
                   {p}
                 </p>
               ))}
@@ -67,7 +67,7 @@ export default async function AboutPage() {
           </div>
         )}
         <Reveal delay={0.1}>
-          <p className="mt-16 max-w-3xl text-lg leading-relaxed text-muted">{settings.aboutStory}</p>
+          <p className="mt-16 max-w-3xl text-lg leading-relaxed text-ink">{settings.aboutStory}</p>
         </Reveal>
       </section>
 
@@ -104,7 +104,7 @@ export default async function AboutPage() {
           </Reveal>
           {toParagraphs(settings.mission).map((p, i) => (
             <Reveal key={i} delay={0.05}>
-              <p className="mt-5 text-lg leading-relaxed text-muted">{p}</p>
+              <p className="mt-5 text-lg leading-relaxed text-ink">{p}</p>
             </Reveal>
           ))}
         </div>

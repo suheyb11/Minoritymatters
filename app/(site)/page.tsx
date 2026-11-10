@@ -151,7 +151,7 @@ export default async function HomePage() {
               <p className="mt-4 font-display text-2xl leading-snug text-ink/60">{settings.introSubtitle}</p>
             </Reveal>
             <Reveal delay={0.1}>
-              <p className="text-lg leading-relaxed text-muted">{settings.introText}</p>
+              <p className="text-lg leading-relaxed text-ink">{settings.introText}</p>
             </Reveal>
           </div>
 
@@ -205,7 +205,7 @@ export default async function HomePage() {
                 Who we are
               </h2>
               <p className="mt-5 text-lg leading-relaxed text-ink">{whoWeAre[0]}</p>
-              {whoWeAre[1] && <p className="mt-4 leading-relaxed text-muted">{whoWeAre[1]}</p>}
+              {whoWeAre[1] && <p className="mt-4 text-lg leading-relaxed text-ink">{whoWeAre[1]}</p>}
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href="/our-work"
