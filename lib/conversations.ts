@@ -13,7 +13,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import type { Message, Reply } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { supabaseAdmin } from "@/lib/storage";
+import { saveAttachment, readAttachment, removeAttachments } from "@/lib/storage";
 import { getMailConfig, mailReady, senderAddress, decrypt, EMAIL_PATTERN } from "@/lib/mail";
 
 export const EMAIL_REPLY = "Email reply";
@@ -66,15 +66,21 @@ export type ReplyFile = { name: string; path: string; size: number };
 
 export type ConversationItem = { type: "in"; message: Message } | { type: "out"; reply: Reply; files: ReplyFile[] };
 
+// Reply.files is JSON text: [{ name, path, size }]
 export function replyFiles(reply: Reply): ReplyFile[] {
-  return Array.isArray(reply.files) ? (reply.files as ReplyFile[]) : [];
+  try {
+    const list = JSON.parse(reply.files || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
 }
 
 // One conversation, oldest first
 export async function getConversation(email: string) {
   const key = emailKey(email);
   if (!key) return [];
-  const messages = await prisma.message.findMany({ where: { email: { equals: key, mode: "insensitive" } } });
+  const messages = await prisma.message.findMany({ where: { email: key } }); // MySQL compares text without case
   const replies = await prisma.reply.findMany({ where: { email: key } });
   const items: (ConversationItem & { at: Date })[] = [
     ...messages.map((message) => ({ type: "in" as const, message, at: message.createdAt })),
@@ -96,11 +102,9 @@ export async function inboxStamp() {
 }
 
 // ---------- Files sent with a reply ----------
-// Kept in the private Storage bucket "attachments" (never public): only the admin can download them,
-// through /admin/messages/file. The browser uploads them straight to Storage, because Vercel refuses
-// requests bigger than 4.5 MB.
+// Kept in STORAGE_DIR/attachments (never public, see lib/storage.ts): only the admin can download them,
+// through /admin/messages/file. The browser uploads them one by one to /admin/messages/upload.
 
-export const ATTACH_BUCKET = "attachments";
 export const ATTACH_MAX = 5;
 export const ATTACH_SIZE = 10 * 1024 * 1024; // each file
 export const ATTACH_TOTAL = 20 * 1024 * 1024; // together (Gmail accepts emails up to 25 MB)
@@ -117,20 +121,11 @@ export function attachmentExtension(name: string) {
   return name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
 }
 
-// The bucket is made the first time a file is sent
-export async function attachmentStorage() {
-  const supabase = supabaseAdmin();
-  const { error } = await supabase.storage.getBucket(ATTACH_BUCKET);
-  if (error) {
-    const made = await supabase.storage.createBucket(ATTACH_BUCKET, { public: false, fileSizeLimit: ATTACH_SIZE });
-    if (made.error && !/already exists/i.test(made.error.message)) throw new Error("Could not make the attachments folder: " + made.error.message);
-  }
-  return supabase.storage.from(ATTACH_BUCKET);
-}
+export { saveAttachment, readAttachment, removeAttachments };
 
 export async function deleteReplyFiles(replies: Reply[]) {
   const paths = replies.flatMap((r) => replyFiles(r).map((f) => f.path));
-  if (paths.length) await (await attachmentStorage()).remove(paths);
+  if (paths.length) await removeAttachments(paths);
 }
 
 // ---------- Copying email answers into conversations ----------

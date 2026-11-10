@@ -1,13 +1,8 @@
 // RESTORE: puts every row from backup/data.json into the database that DATABASE_URL (in .env) points to.
 // The ids stay the same. Run it with: npm run data:import
+// backup/data.json comes from npm run data:export, or from npm run data:from-supabase (moving to Hostinger).
 //
-// Moving to Supabase:
-//   1. npm run data:export                      (while .env still points to the old database)
-//   2. in prisma/schema.prisma set provider = "postgresql", and in .env set DATABASE_URL to Supabase
-//   3. delete the prisma/migrations folder, then: npx prisma migrate dev --name init
-//   4. npm run data:import
-//
-// The database must be empty, so nothing is overwritten by accident.
+// The database must be empty (only the tables made by prisma migrate deploy), so nothing is overwritten by accident.
 
 import fs from "fs";
 import path from "path";
@@ -15,41 +10,42 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const DATE_FIELDS = ["createdAt", "publishedAt", "startsAt", "endsAt", "bookingClosesAt", "lastSyncAt"];
+
+// Dates were saved as ISO text: turn them back into Date objects. Reply.files is stored as JSON text.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fix(rows: any[] = []) {
+  return rows.map((row) => {
+    const out = { ...row };
+    for (const key of DATE_FIELDS) if (typeof out[key] === "string") out[key] = new Date(out[key]);
+    if ("files" in out && typeof out.files !== "string") out.files = JSON.stringify(out.files ?? []);
+    return out;
+  });
+}
+
 async function main() {
   const file = path.join(process.cwd(), "backup", "data.json");
-  if (!fs.existsSync(file)) throw new Error("backup/data.json not found. Run npm run data:export first.");
+  if (!fs.existsSync(file)) throw new Error("backup/data.json not found. Run npm run data:export (or data:from-supabase) first.");
   const data = JSON.parse(fs.readFileSync(file, "utf8"));
 
-  const existing = (await prisma.setting.count()) + (await prisma.service.count()) + (await prisma.post.count());
-  if (existing > 0) {
-    throw new Error("This database already has content. Empty it first (npx prisma migrate reset), then try again.");
-  }
+  const existing = (await prisma.setting.count()) + (await prisma.service.count()) + (await prisma.post.count()) + (await prisma.event.count());
+  if (existing > 0) throw new Error("This database already has content. Empty it first, then try again.");
 
-  // Dates were saved as ISO text; turn them back into Date objects
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const posts = data.Post.map((p: any) => ({ ...p, publishedAt: new Date(p.publishedAt) }));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const messages = data.Message.map((m: any) => ({ ...m, createdAt: new Date(m.createdAt) }));
-
-  await prisma.setting.createMany({ data: data.Setting });
-  await prisma.service.createMany({ data: data.Service });
-  await prisma.value.createMany({ data: data.Value });
-  await prisma.pressItem.createMany({ data: data.PressItem });
-  await prisma.post.createMany({ data: posts });
-  await prisma.funder.createMany({ data: data.Funder });
-  await prisma.message.createMany({ data: messages });
-
-  // PostgreSQL only: the id counters do not move when rows are inserted with their own ids.
-  // Set each counter to the highest id, so the next new row does not get an id that is already used.
-  const url = process.env.DATABASE_URL || "";
-  if (url.startsWith("postgres")) {
-    for (const table of ["Service", "Value", "PressItem", "Post", "Funder", "Message"]) {
-      await prisma.$executeRawUnsafe(
-        `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE(MAX(id), 1)) FROM "${table}"`
-      );
-    }
-    console.log("Reset the PostgreSQL id counters.");
-  }
+  // In this order: a Booking needs its Event
+  await prisma.setting.createMany({ data: fix(data.Setting) });
+  await prisma.service.createMany({ data: fix(data.Service) });
+  await prisma.project.createMany({ data: fix(data.Project) });
+  await prisma.value.createMany({ data: fix(data.Value) });
+  await prisma.pressItem.createMany({ data: fix(data.PressItem) });
+  await prisma.post.createMany({ data: fix(data.Post) });
+  await prisma.funder.createMany({ data: fix(data.Funder) });
+  await prisma.message.createMany({ data: fix(data.Message) });
+  await prisma.reply.createMany({ data: fix(data.Reply) });
+  await prisma.adminUser.createMany({ data: fix(data.AdminUser) });
+  await prisma.mailConfig.createMany({ data: fix(data.MailConfig) });
+  await prisma.event.createMany({ data: fix(data.Event) });
+  await prisma.booking.createMany({ data: fix(data.Booking) });
+  // MySQL moves the id counters on by itself, so new rows never get an id that is already used.
 
   for (const table of Object.keys(data)) console.log(`${table}: ${data[table].length} rows`);
   console.log("Import finished.");

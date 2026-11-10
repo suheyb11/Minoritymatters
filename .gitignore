@@ -50,3 +50,6 @@ next-env.d.ts
 
 # WordPress zip files (made from wordpress/, see wordpress/WORDPRESS.md)
 /wordpress/dist/
+
+# Files uploaded in the admin when running on this computer (STORAGE_DIR, see lib/storage.ts)
+/storage/

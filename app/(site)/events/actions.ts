@@ -62,7 +62,7 @@ export async function bookPlace(_prev: BookingState, formData: FormData): Promis
 
   // ---------- Not too many bookings from the same email ----------
   const earlier = await prisma.booking.count({
-    where: { eventId, email: { equals: email, mode: "insensitive" }, status: { not: "cancelled" } },
+    where: { eventId, email /* MySQL compares text without case */, status: { not: "cancelled" } },
   });
   if (earlier >= 3) {
     return fail("You've already made 3 bookings for this event. Please contact us if you need to change them.");
@@ -73,7 +73,7 @@ export async function bookPlace(_prev: BookingState, formData: FormData): Promis
   // at the same moment are handled one after the other and the event can't be overbooked.
   const places = adults + children;
   const status = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM \`Event\` WHERE id = ${eventId} FOR UPDATE`;
     const taken = await getPlacesTaken(eventId, tx);
     const fits = event.capacity === null || taken + places <= event.capacity;
     const status = fits ? "confirmed" : "waitlist";

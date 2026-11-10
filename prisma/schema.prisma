@@ -1,130 +1,135 @@
-// The database schema for the website. The database is Supabase (PostgreSQL).
-// DATABASE_URL = Supabase "Transaction pooler" (port 6543), used by the website.
-// DIRECT_URL   = Supabase "Session pooler" or direct connection (port 5432), used by prisma migrate.
+// The database schema for the website. The database is MySQL on Hostinger (hPanel > Databases > MySQL Databases).
+// DATABASE_URL = mysql://USER:PASSWORD@HOST:3306/DATABASE
+//   On the Hostinger server HOST is "localhost"; from your computer it is the Remote MySQL host shown in hPanel.
+//
+// MySQL notes:
+// - Long text uses @db.Text (a plain String is VARCHAR(191) in MySQL: too short for paragraphs and links).
+// - Comparing text is not case sensitive (utf8mb4_unicode_ci), so "Ali@X.com" finds "ali@x.com".
+// - Defaults on TEXT columns must be written DEFAULT ('') in migration SQL (MySQL 8 refuses DEFAULT '').
+//   prisma migrate dev writes DEFAULT '': put brackets around it before you run the migration on Hostinger.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 // Site-wide text and contact details. There is only one row (id = 1).
 model Setting {
   id            Int    @id @default(1)
-  heroTagline   String @default("")
-  introHeading  String @default("")
-  introSubtitle String @default("")
-  introText     String @default("")
-  address       String @default("")
-  phone         String @default("")
-  email         String @default("")
-  pressEmail    String @default("")
-  charityNumber String @default("")
-  donateUrl     String @default("")
-  tiktokUrl     String @default("")
-  xUrl          String @default("")
-  facebookUrl   String @default("")
-  youtubeUrl    String @default("")
-  instagramUrl  String @default("")
-  linkedinUrl   String @default("")
-  aboutLead     String @default("")
-  aboutStory    String @default("")
-  vision        String @default("")
-  mission       String @default("")
+  heroTagline   String @default("") @db.Text
+  introHeading  String @default("") @db.Text
+  introSubtitle String @default("") @db.Text
+  introText     String @default("") @db.Text
+  address       String @default("") @db.Text
+  phone         String @default("") @db.Text
+  email         String @default("") @db.Text
+  pressEmail    String @default("") @db.Text
+  charityNumber String @default("") @db.Text
+  donateUrl     String @default("") @db.Text
+  tiktokUrl     String @default("") @db.Text
+  xUrl          String @default("") @db.Text
+  facebookUrl   String @default("") @db.Text
+  youtubeUrl    String @default("") @db.Text
+  instagramUrl  String @default("") @db.Text
+  linkedinUrl   String @default("") @db.Text
+  aboutLead     String @default("") @db.Text
+  aboutStory    String @default("") @db.Text
+  vision        String @default("") @db.Text
+  mission       String @default("") @db.Text
   // Text from the brochure
-  whoWeAre      String @default("")
-  referralText  String @default("")
-  tagline       String @default("")
-  communityLine String @default("")
+  whoWeAre      String @default("") @db.Text
+  referralText  String @default("") @db.Text
+  tagline       String @default("") @db.Text
+  communityLine String @default("") @db.Text
   // The "Our founder" video page (/our-founder)
-  founderName       String @default("")
-  founderRole       String @default("")
-  founderPhoto      String @default("") // also the picture shown before the video plays
-  founderVideoUrl   String @default("") // YouTube, Vimeo or .mp4 link
-  founderIntro      String @default("")
-  founderTranscript String @default("") // lines starting with [mm:ss] show a time
+  founderName       String @default("") @db.Text
+  founderRole       String @default("") @db.Text
+  founderPhoto      String @default("") @db.Text // also the picture shown before the video plays
+  founderVideoUrl   String @default("") @db.Text // YouTube, Vimeo or .mp4 link
+  founderIntro      String @default("") @db.Text
+  founderTranscript String @default("") @db.Text // lines starting with [mm:ss] show a time
   // A copy of every contact form message is emailed here. Empty = no emails (messages are always saved)
-  contactNotifyEmail String @default("")
+  contactNotifyEmail String @default("") @db.Text
   // We email this address when someone books a place on an event. Empty = BOOKING_NOTIFY_EMAIL in .env, or no emails
-  bookingNotifyEmail String @default("")
+  bookingNotifyEmail String @default("") @db.Text
   // The second way to donate. With both donate links filled in, the Donate buttons let people choose (/donate)
-  donateGiveyUrl     String @default("")
+  donateGiveyUrl     String @default("") @db.Text
 }
 
 // "Our work": the 5 main service areas and the named programmes
 model Service {
   id        Int     @id @default(autoincrement())
-  title     String
+  title     String  @db.Text
   slug      String  @unique
-  summary   String  @default("")
-  intro     String  @default("")
-  points    String  @default("") // one bullet per line
-  outro     String  @default("") // paragraphs separated by a blank line
-  icon      String  @default("/images/icons/promotion.svg")
+  summary   String  @default("") @db.Text
+  intro     String  @default("") @db.Text
+  points    String  @default("") @db.Text // one bullet per line
+  outro     String  @default("") @db.Text // paragraphs separated by a blank line
+  icon      String  @default("/images/icons/promotion.svg") @db.VarChar(500)
   sortOrder Int     @default(0)
   published Boolean @default(true)
-  kind      String  @default("programme") // "area" = one of the 5 main service areas, "programme" = a named programme
+  kind      String  @default("programme") @db.VarChar(20) // "area" = one of the 5 main service areas, "programme" = a named programme
 }
 
 // "Impact": the projects we delivered, grouped by period (for example "2025–26")
 model Project {
   id             Int     @id @default(autoincrement())
-  title          String
+  title          String  @db.Text
   slug           String  @unique
-  period         String  @default("") // for example "2025–26"
-  category       String  @default("") // one of PROJECT_CATEGORIES in lib/db.ts
-  summary        String  @default("") // 1–2 sentences
-  body           String  @default("") // paragraphs separated by a blank line
-  stats          String  @default("") // one per line: "number|label", e.g. "93|boys aged 11–16"
+  period         String  @default("") @db.VarChar(50) // for example "2025–26"
+  category       String  @default("") @db.VarChar(100) // one of PROJECT_CATEGORIES in lib/db.ts
+  summary        String  @default("") @db.Text // 1–2 sentences
+  body           String  @default("") @db.Text // paragraphs separated by a blank line
+  stats          String  @default("") @db.Text // one per line: "number|label", e.g. "93|boys aged 11–16"
   peopleReached  Int     @default(0) // 0 = not counted in the total
-  coverImage     String  @default("")
-  gallery        String  @default("") // one image per line: "path" or "path | description"
-  relatedService String  @default("") // a Service slug, or ""
+  coverImage     String  @default("") @db.Text
+  gallery        String  @default("") @db.Text // one image per line: "path" or "path | description"
+  relatedService String  @default("") @db.VarChar(191) // a Service slug, or ""
   sortOrder      Int     @default(0)
   published      Boolean @default(true)
   // The one project shown as "Featured story" on the home page (only one at a time)
   isFeatured       Boolean @default(false)
-  featuredHeadline String  @default("") // optional; the project title is used when empty
+  featuredHeadline String  @default("") @db.Text // optional; the project title is used when empty
 }
 
 model Value {
   id        Int    @id @default(autoincrement())
-  title     String
-  text      String @default("")
-  icon      String @default("")
+  title     String @db.Text
+  text      String @default("") @db.Text
+  icon      String @default("") @db.Text
   sortOrder Int    @default(0)
 }
 
 model PressItem {
   id        Int    @id @default(autoincrement())
-  title     String
-  source    String @default("")
-  url       String
-  image     String @default("")
+  title     String @db.Text
+  source    String @default("") @db.Text
+  url       String @db.Text
+  image     String @default("") @db.Text
   sortOrder Int    @default(0)
 }
 
 model Post {
   id          Int      @id @default(autoincrement())
-  title       String
+  title       String   @db.Text
   slug        String   @unique
-  excerpt     String   @default("")
-  body        String   @default("") // paragraphs separated by a blank line
-  coverImage  String   @default("")
-  author      String   @default("Minority Matters")
+  excerpt     String   @default("") @db.Text
+  body        String   @default("") @db.MediumText // paragraphs separated by a blank line
+  coverImage  String   @default("") @db.Text
+  author      String   @default("Minority Matters") @db.VarChar(191)
   published   Boolean  @default(true)
   publishedAt DateTime @default(now())
 }
 
 model Funder {
   id        Int     @id @default(autoincrement())
-  name      String
-  logo      String  @default("")
-  url       String  @default("")
+  name      String  @db.Text
+  logo      String  @default("") @db.Text
+  url       String  @default("") @db.Text
   showLogo  Boolean @default(false) // show the logo on the home page
   sortOrder Int     @default(0)
 }
@@ -132,15 +137,15 @@ model Funder {
 // Contact form messages, and email answers copied from the mailbox (reason "Email reply", see lib/conversations.ts)
 model Message {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @db.Text
   email     String
-  phone     String   @default("")
-  message   String
-  reason    String   @default("General enquiry") // one of the choices in lib/reasons.ts, or "Email reply"
+  phone     String   @default("") @db.VarChar(100)
+  message   String   @db.MediumText
+  reason    String   @default("General enquiry") @db.VarChar(100) // one of the choices in lib/reasons.ts, or "Email reply"
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  subject   String   @default("") // email answers only
-  messageId String   @default("") // email answers only: the email's Message-ID, so it is copied once
+  subject   String   @default("") @db.Text // email answers only
+  messageId String   @default("") @db.Text // email answers only: the email's Message-ID, so it is copied once
 
   @@index([email])
 }
@@ -149,11 +154,11 @@ model Message {
 model Reply {
   id         Int      @id @default(autoincrement())
   email      String // the person the reply was sent to (lower case)
-  subject    String
-  body       String
-  files      Json     @default("[]") // [{ name, path, size }]: files in the private Storage bucket "attachments"
+  subject    String   @db.Text
+  body       String   @db.MediumText
+  files      String   @default("[]") @db.Text // JSON: [{ name, path, size }], files in STORAGE_DIR/attachments (lib/storage.ts)
   sent       Boolean  @default(false) // false = saved, but the email could not be delivered
-  authorName String   @default("")
+  authorName String   @default("") @db.VarChar(191)
   createdAt  DateTime @default(now())
 
   @@index([email])
@@ -163,24 +168,24 @@ model Reply {
 // The Administrator is not in this table: they log in with ADMIN_PASSWORD (.env), see lib/auth.ts.
 model AdminUser {
   id           Int      @id @default(autoincrement())
-  name         String
+  name         String   @db.VarChar(191)
   email        String   @unique // lower case
-  passwordHash String
+  passwordHash String   @db.Text
   createdAt    DateTime @default(now())
 }
 
 // How the website sends email (Admin > Site settings > Email sending). There is only one row (id = 1).
 model MailConfig {
   id          Int       @id @default(1)
-  user        String    @default("") // the Google account, e.g. info@minoritymatters.org.uk
-  fromAddress String    @default("") // optional "Send as" address (an alias of the account)
-  pass        String    @default("") // the App password, encrypted (lib/mail.ts)
-  host        String    @default("smtp.gmail.com")
+  user        String    @default("") @db.VarChar(191) // the Google account, e.g. info@minoritymatters.org.uk
+  fromAddress String    @default("") @db.VarChar(191) // optional "Send as" address (an alias of the account)
+  pass        String    @default("") @db.Text // the App password, encrypted (lib/mail.ts)
+  host        String    @default("smtp.gmail.com") @db.VarChar(191)
   port        Int       @default(587)
-  lastError   String    @default("") // the last sending error, shown in the admin
-  imapError   String    @default("") // the last error while checking the mailbox for email answers
+  lastError   String    @default("") @db.Text // the last sending error, shown in the admin
+  imapError   String    @default("") @db.Text // the last error while checking the mailbox for email answers
   lastSyncAt  DateTime? // when the mailbox was last checked
-  seen        String    @default("") // emails already looked at, one "folder:uid" per line (the last 5000)
+  seen        String    @default("") @db.MediumText // emails already looked at, one "folder:uid" per line (the last 5000)
 }
 
 // Counts form uses per visitor (a hash of the IP address) for 10 minutes, so forms can't be flooded
@@ -195,24 +200,24 @@ model RateHit {
 // "Events": activities, trips and sessions people can come to (/events)
 model Event {
   id              Int       @id @default(autoincrement())
-  title           String
+  title           String    @db.Text
   slug            String    @unique
-  summary         String    @default("") // 1–2 sentences for cards
-  body            String    @default("") // paragraphs separated by a blank line
+  summary         String    @default("") @db.Text // 1–2 sentences for cards
+  body            String    @default("") @db.MediumText // paragraphs separated by a blank line
   startsAt        DateTime
   endsAt          DateTime?
-  location        String    @default("") // e.g. "Sobell Leisure Centre"
-  address         String    @default("") // full address incl. postcode
-  audience        String    @default("Everyone") // one of EVENT_AUDIENCES in lib/db.ts
+  location        String    @default("") @db.Text // e.g. "Sobell Leisure Centre"
+  address         String    @default("") @db.Text // full address incl. postcode
+  audience        String    @default("Everyone") @db.VarChar(100) // one of EVENT_AUDIENCES in lib/db.ts
   ageMin          Int?
   ageMax          Int?
-  price           String    @default("Free") // free text: "Free", "£2 per child"
+  price           String    @default("Free") @db.VarChar(191) // free text: "Free", "£2 per child"
   capacity        Int? // null = unlimited
-  bookingType     String    @default("form") // "form" | "external" | "none"
-  bookingUrl      String    @default("") // Plinth / Eventbrite / Google Form link when external
+  bookingType     String    @default("form") @db.VarChar(20) // "form" | "external" | "none"
+  bookingUrl      String    @default("") @db.Text // Plinth / Eventbrite / Google Form link when external
   bookingClosesAt DateTime?
-  coverImage      String    @default("")
-  projectSlug     String    @default("") // link to an Impact project (optional)
+  coverImage      String    @default("") @db.Text
+  projectSlug     String    @default("") @db.VarChar(191) // link to an Impact project (optional)
   published       Boolean   @default(true)
   createdAt       DateTime  @default(now())
   bookings        Booking[]
@@ -223,14 +228,14 @@ model Booking {
   id        Int      @id @default(autoincrement())
   eventId   Int
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  name      String // parent/guardian or adult attendee
-  email     String
-  phone     String   @default("")
+  name      String   @db.Text // parent/guardian or adult attendee
+  email     String   @db.VarChar(191)
+  phone     String   @default("") @db.VarChar(100)
   adults    Int      @default(1)
   children  Int      @default(0)
-  childAges String   @default("") // e.g. "8, 11"
-  notes     String   @default("") // access needs or questions (optional)
-  status    String   @default("confirmed") // "confirmed" | "waitlist" | "cancelled" | "attended"
+  childAges String   @default("") @db.VarChar(191) // e.g. "8, 11"
+  notes     String   @default("") @db.Text // access needs or questions (optional)
+  status    String   @default("confirmed") @db.VarChar(20) // "confirmed" | "waitlist" | "cancelled" | "attended"
   createdAt DateTime @default(now())
 
   @@index([eventId])

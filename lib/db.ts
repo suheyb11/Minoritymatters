@@ -180,9 +180,12 @@ export function formatDate(date: Date) {
 export const EVENT_AUDIENCES = ["Everyone", "Families", "Girls", "Boys", "Young women", "Mothers", "Parents", "Professionals"];
 
 // The website's full address, for links in calendar files and search engine data
-export const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : "http://localhost:3000";
+// On Hostinger set SITE_URL (e.g. https://minoritymatters.org.uk); Vercel sets its own variable.
+export const SITE_URL =
+  process.env.SITE_URL?.replace(/\/$/, "") ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
 
 // An event is "upcoming" until it ends (or until it starts, when it has no end time)
 function upcomingWhere(now: Date): Prisma.EventWhereInput {

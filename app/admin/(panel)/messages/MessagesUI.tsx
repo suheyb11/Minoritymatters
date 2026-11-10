@@ -33,14 +33,11 @@ export function ReplyForm({ email, name, accept, max, children }: { email: strin
     startTransition(async () => {
       let files: { name: string; path: string }[] = [];
       if (chosen.length) {
-        // The files go straight to Storage (Vercel refuses requests bigger than 4.5 MB)
+        // Each file is uploaded on its own (/admin/messages/upload), then the reply is sent
         const result = await prepareAttachments(chosen.map((f) => ({ name: f.name, size: f.size })));
         if ("error" in result) return setProblem(fileProblems[result.error!]);
         for (let i = 0; i < chosen.length; i++) {
-          const body = new FormData();
-          body.append("cacheControl", "3600");
-          body.append("", chosen[i]);
-          const response = await fetch(result.uploads[i].url, { method: "PUT", body }).catch(() => null);
+          const response = await fetch(result.uploads[i].url, { method: "PUT", body: chosen[i] }).catch(() => null);
           if (!response?.ok) return setProblem(fileProblems["file-failed"]);
         }
         files = result.uploads.map((u) => ({ name: u.name, path: u.path }));

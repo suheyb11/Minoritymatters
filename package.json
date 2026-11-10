@@ -11,10 +11,11 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "data:export": "tsx scripts/export-data.ts",
-    "data:import": "tsx scripts/import-data.ts",
-    "media:move": "tsx scripts/move-uploads.ts",
-    "data:for-wordpress": "tsx scripts/export-for-wordpress.ts"
+    "data:export": "tsx --env-file=.env scripts/export-data.ts",
+    "data:import": "tsx --env-file=.env scripts/import-data.ts",
+    "data:for-wordpress": "tsx scripts/export-for-wordpress.ts",
+    "db:deploy": "prisma migrate deploy",
+    "data:from-supabase": "prisma generate --schema prisma/supabase.prisma && tsx --env-file=.env scripts/export-from-supabase.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -46,5 +47,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

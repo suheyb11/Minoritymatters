@@ -26,7 +26,8 @@ import {
   emailKey,
   getConversation,
   syncReplies,
-  attachmentStorage,
+  readAttachment,
+  removeAttachments,
   deleteReplyFiles,
   safeFileName,
   attachmentExtension,
@@ -52,7 +53,7 @@ function checkbox(formData: FormData, name: string) {
   return formData.get(name) === "on";
 }
 
-// If a file was chosen, upload it to Supabase Storage and return its public web address.
+// If a file was chosen, save it (STORAGE_DIR/media, lib/storage.ts) and return its web address "/media/<file>".
 // Otherwise return the address typed in the text box.
 async function imageFrom(formData: FormData, name: string) {
   const file = formData.get(name + "File");
@@ -454,7 +455,7 @@ export async function markConversationUnread(formData: FormData) {
   await requireAdmin();
   const email = emailKey(text(formData, "with"));
   const last = await prisma.message.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
+    where: { email }, // MySQL compares text without case
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   if (last) await prisma.message.update({ where: { id: last.id }, data: { isRead: false } });
@@ -469,7 +470,7 @@ export async function deleteConversation(formData: FormData) {
     const replies = await prisma.reply.findMany({ where: { email } });
     await deleteReplyFiles(replies);
     await prisma.reply.deleteMany({ where: { email } });
-    await prisma.message.deleteMany({ where: { email: { equals: email, mode: "insensitive" } } });
+    await prisma.message.deleteMany({ where: { email } });
   }
   redirect("/admin/messages?deleted=1");
 }
@@ -487,22 +488,19 @@ export async function checkEmailReplies(formData: FormData) {
   redirect(messagesUrl(email, params));
 }
 
-// Step 1 of attaching files: the browser asks where to upload them (straight to Storage, see ReplyForm),
-// because Vercel refuses requests bigger than 4.5 MB. Returns one upload address per file, or a problem.
+// Step 1 of attaching files: the browser asks where to upload them (see ReplyForm), then uploads each file
+// to /admin/messages/upload (one request per file). Returns one upload address per file, or a problem.
 export async function prepareAttachments(files: { name: string; size: number }[]) {
   await requireAdmin();
   if (files.length > ATTACH_MAX) return { error: "files" as const };
   if (files.some((f) => f.size > ATTACH_SIZE) || files.reduce((sum, f) => sum + f.size, 0) > ATTACH_TOTAL) return { error: "file-size" as const };
   if (files.some((f) => !ATTACH_TYPES.includes(attachmentExtension(f.name)))) return { error: "file-type" as const };
 
-  const storage = await attachmentStorage();
   const folder = crypto.randomBytes(12).toString("hex");
   const uploads = [];
   for (const f of files) {
     const filePath = `${folder}/${safeFileName(f.name)}`;
-    const { data, error } = await storage.createSignedUploadUrl(filePath);
-    if (error || !data) return { error: "file-failed" as const };
-    uploads.push({ name: f.name, path: filePath, size: f.size, url: data.signedUrl });
+    uploads.push({ name: f.name, path: filePath, size: f.size, url: "/admin/messages/upload?path=" + encodeURIComponent(filePath) });
   }
   return { uploads };
 }
@@ -534,16 +532,14 @@ export async function sendReply(formData: FormData) {
   if (files.length > ATTACH_MAX) back({ error: "files" });
   const attachments = [];
   if (files.length) {
-    const storage = await attachmentStorage();
     for (const f of files) {
-      const { data, error } = await storage.download(f.path);
-      if (error || !data) back({ error: "file-failed" });
-      const content = Buffer.from(await data!.arrayBuffer());
+      const content = await readAttachment(f.path);
+      if (!content) return back({ error: "file-failed" });
       f.size = content.length;
       attachments.push({ filename: f.name, content });
     }
     if (files.some((f) => f.size > ATTACH_SIZE) || files.reduce((sum, f) => sum + f.size, 0) > ATTACH_TOTAL) {
-      await storage.remove(files.map((f) => f.path));
+      await removeAttachments(files.map((f) => f.path));
       back({ error: "file-size" });
     }
   }
@@ -565,7 +561,7 @@ export async function sendReply(formData: FormData) {
   });
 
   // Saved either way, so the conversation shows what was written
-  await prisma.reply.create({ data: { email, subject, body, files, sent, authorName: admin.name } });
+  await prisma.reply.create({ data: { email, subject, body, files: JSON.stringify(files), sent, authorName: admin.name } });
   await prisma.message.updateMany({ where: { id: { in: incoming.map((m) => m.id) } }, data: { isRead: true } });
   back(sent ? { sent: "1" } : { error: "mail" });
 }
